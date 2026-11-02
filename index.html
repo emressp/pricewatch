@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pricewatch — Weekly SaaS Pricing Intel</title>
+  <meta name="description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly plain-English SaaS pricing intel for founders and PMMs." />
+  <style>
+    :root {
+      --ink: #0b1220;
+      --muted: #5b6b7c;
+      --line: #e6ebf2;
+      --bg: #f6f8fc;
+      --card: #ffffff;
+      --brand: #4f46e5;
+      --brand-dark: #312e81;
+      --teal: #0d9488;
+      --ok: #059669;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+    a { color: var(--brand); }
+    .nav {
+      max-width: 1040px; margin: 0 auto; padding: 18px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; }
+    .logo span { color: var(--brand); }
+    .nav a.btn-sm {
+      text-decoration: none; background: var(--ink); color: #fff;
+      padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    }
+    .hero {
+      max-width: 1040px; margin: 0 auto; padding: 24px 20px 8px;
+      display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px; align-items: center;
+    }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+    .eyebrow {
+      display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--teal); background: #ccfbf1;
+      padding: 4px 10px; border-radius: 999px; margin-bottom: 12px;
+    }
+    h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -0.03em; }
+    .lede { color: var(--muted); font-size: 17px; margin: 0 0 18px; max-width: 540px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    .btn {
+      display: inline-block; text-decoration: none; border-radius: 10px;
+      padding: 12px 18px; font-weight: 700; font-size: 14px;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .trust { font-size: 13px; color: var(--muted); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    .card h3 { margin: 0 0 8px; font-size: 15px; }
+    .card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+    .section { max-width: 1040px; margin: 0 auto; padding: 36px 20px; }
+    .section h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -0.02em; }
+    .section .sub { color: var(--muted); margin: 0 0 22px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 860px) { .grid-3 { grid-template-columns: 1fr; } }
+    .feature { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .feature .icon { font-size: 20px; margin-bottom: 8px; }
+    .feature h3 { margin: 0 0 6px; font-size: 16px; }
+    .feature p { margin: 0; color: var(--muted); font-size: 14px; }
+    .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 860px) { .pricing { grid-template-columns: 1fr; } }
+    .plan {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 22px; position: relative;
+    }
+    .plan.featured {
+      border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+    .plan .tag {
+      position: absolute; top: 12px; right: 12px; background: var(--brand); color: #fff;
+      font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    }
+    .plan h3 { margin: 0; font-size: 16px; }
+    .plan .price { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin: 10px 0 4px; }
+    .plan .price span { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .plan .who { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+    .plan ul { margin: 0 0 16px; padding-left: 18px; font-size: 14px; color: var(--ink); }
+    .plan a {
+      display: block; text-align: center; text-decoration: none; font-weight: 700;
+      background: #0b1220; color: #fff; padding: 11px; border-radius: 10px; font-size: 14px;
+    }
+    .plan.featured a { background: var(--brand); }
+    .waitlist {
+      background: linear-gradient(135deg, var(--brand-dark), var(--brand) 60%, var(--teal));
+      color: #fff; border-radius: 18px; padding: 28px; display: grid;
+      grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: center;
+    }
+    @media (max-width: 860px) { .waitlist { grid-template-columns: 1fr; } }
+    .waitlist h2 { margin: 0 0 8px; color: #fff; }
+    .waitlist p { margin: 0; opacity: .92; }
+    .waitlist .box {
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+      border-radius: 14px; padding: 16px;
+    }
+    .waitlist a.form {
+      display: inline-block; margin-top: 10px; background: #fff; color: var(--brand-dark);
+      text-decoration: none; font-weight: 800; padding: 12px 16px; border-radius: 10px;
+    }
+    .fine { font-size: 12px; opacity: .85; margin-top: 8px; }
+    footer {
+      max-width: 1040px; margin: 0 auto; padding: 24px 20px 40px;
+      color: var(--muted); font-size: 12px; border-top: 1px solid var(--line);
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="logo">Price<span>watch</span></div>
+    <a class="btn-sm" href="#waitlist">Join waitlist</a>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">For founders · PMMs · competitive enablement</div>
+      <h1>Stop finding out about competitor price changes from a lost deal.</h1>
+      <p class="lede">
+        Pricewatch watches public SaaS pricing pages and sends a plain-English weekly brief:
+        plan adds/removes, price moves, limit cuts, and packaging shifts — with citations.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#waitlist">Get early access</a>
+        <a class="btn btn-ghost" href="sample/weekly-intel.html">See sample intel</a>
+      </div>
+      <p class="trust">Built for people who live in battlecards — not generic “page changed” alerts.</p>
+    </div>
+    <aside class="card" id="sample">
+      <h3>Sample from Weekly SaaS Pricing Intel</h3>
+      <ul>
+        <li><strong>Mailchimp</strong> — Free plan cut to 250 contacts / 500 sends (effective Feb 17, 2026).</li>
+        <li><strong>Linear</strong> — Basic $8→$10, Business $14→$16; legacy Plus/Standard retiring after Feb 1, 2026.</li>
+        <li><strong>Notion</strong> — AI for Work bundled; Business ~$20/user; AI add-on story gone.</li>
+        <li><strong>OpenAI</strong> — Team repositioned to Business packaging.</li>
+      </ul>
+      <p class="trust" style="margin-top:12px;margin-bottom:0">
+        Free sample: <a href="sample/weekly-intel.html">read the HTML brief</a>
+        · <a href="sample/weekly-intel.pdf">download PDF</a>
+      </p>
+    </aside>
+  </section>
+
+  <section class="section">
+    <h2>Why this isn’t Visualping</h2>
+    <p class="sub">Pixel diffs scream. Pricewatch translates pricing taxonomy into decisions.</p>
+    <div class="grid-3">
+      <div class="feature">
+        <div class="icon">🧾</div>
+        <h3>Plan / price / limit aware</h3>
+        <p>We extract named plans, list prices, and key limits — then diff week over week.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">✍️</div>
+        <h3>AI-style English briefs</h3>
+        <p>Human-readable “what changed + so what” summaries you can paste into Slack or a battlecard.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🎯</div>
+        <h3>Category focus</h3>
+        <p>Start with Email Marketing, CRM, and AI/Dev tools — the stacks your ICP already obsesses over.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing">
+    <h2>Simple tiers</h2>
+    <p class="sub">Launch pricing. Cancel anytime once billed. Merchant of Record via Polar (Rita wires this when ready).</p>
+    <div class="pricing">
+      <div class="plan">
+        <h3>Scout</h3>
+        <div class="price">$19 <span>/ mo</span></div>
+        <div class="who">Solo founders &amp; indie PMMs</div>
+        <ul>
+          <li>Weekly email brief</li>
+          <li>~25 tracked products</li>
+          <li>3 categories</li>
+          <li>Sample archive access</li>
+        </ul>
+        <a href="#waitlist">Join waitlist</a>
+      </div>
+      <div class="plan featured">
+        <div class="tag">Most popular</div>
+        <h3>Operator</h3>
+        <div class="price">$49 <span>/ mo</span></div>
+        <div class="who">PMM / competitive intel leads</div>
+        <ul>
+          <li>Everything in Scout</li>
+          <li>CSV / JSON export</li>
+          <li>Custom watchlist (up to 40)</li>
+          <li>Change alerts mid-week on major moves</li>
+        </ul>
+        <a href="#waitlist">Join waitlist</a>
+      </div>
+      <div class="plan">
+        <h3>Team</h3>
+        <div class="price">$99 <span>/ mo</span></div>
+        <div class="who">Sales + product marketing teams</div>
+        <ul>
+          <li>Everything in Operator</li>
+          <li>Shared workspace (5 seats)</li>
+          <li>Slack-ready digest</li>
+          <li>Priority category requests</li>
+        </ul>
+        <a href="#waitlist">Join waitlist</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="waitlist">
+    <div class="waitlist">
+      <div>
+        <h2>Join the waitlist</h2>
+        <p>
+          Zero spam. Tell us your role + which competitors you care about.
+          Early members get the sample Weekly SaaS Pricing Intel PDF and founding-member pricing.
+        </p>
+      </div>
+      <div class="box">
+        <strong>Free waitlist form</strong>
+        <p style="margin:8px 0 0;font-size:14px;opacity:.95">
+          Rita: replace the link below with your free Tally.so or Google Form URL (takes ~5 minutes).
+        </p>
+        <!-- PLACEHOLDER: Rita creates a free Tally or Google Form and pastes the public link here -->
+        <a class="form" href="https://tally.so/r/REPLACE_WITH_RITA_FORM" rel="noopener">
+          Open waitlist form →
+        </a>
+        <p class="fine">Placeholder link on purpose — no signup performed by the bot. Swap before deploy.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Pricewatch · Not affiliated with monitored SaaS vendors · Deployable free on GitHub Pages or Cloudflare Pages (drop this folder as the site root).</p>
+    <p>Nigeria-friendly payments planned via Polar (Merchant of Record). No capital required to launch the waitlist.</p>
+  </footer>
+</body>
+</html>

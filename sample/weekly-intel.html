@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Weekly SaaS Pricing Intel — Sample Issue #1</title>
+<style>
+  :root {
+    --ink:#0f172a; --muted:#475569; --line:#e2e8f0; --bg:#f8fafc;
+    --accent:#4f46e5; --card:#fff;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.55;
+  }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 20px 64px; }
+  header.hero {
+    background:linear-gradient(135deg,#312e81,#4f46e5 55%,#0d9488);
+    color:#fff; border-radius:16px; padding:36px 32px; margin-bottom:28px;
+  }
+  header.hero .kicker { opacity:.85; font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  header.hero h1 { margin:8px 0 10px; font-size:28px; line-height:1.2; }
+  header.hero p { margin:0; opacity:.95; max-width:620px; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+  .pill { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25);
+    border-radius:999px; padding:6px 12px; font-size:12px; }
+  h2 { font-size:20px; margin:32px 0 12px; }
+  .story {
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; margin:14px 0;
+  }
+  .story h3 { margin:6px 0 8px; font-size:17px; }
+  .story-meta { display:flex; gap:8px; flex-wrap:wrap; }
+  .badge { background:#eef2ff; color:#3730a3; font-size:11px; padding:3px 8px;
+    border-radius:6px; text-transform:uppercase; letter-spacing:.04em; }
+  .cat { background:#f0fdfa; color:#0f766e; font-size:11px; padding:3px 8px; border-radius:6px; }
+  .impact { color:var(--muted); font-size:14px; }
+  details { margin-top:8px; font-size:13px; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+    border-radius:12px; overflow:hidden; border:1px solid var(--line); font-size:13px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:#f1f5f9; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  td.plans { color:var(--muted); max-width:280px; }
+  .note { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;
+    border-radius:10px; padding:12px 14px; font-size:13px; margin-top:20px; }
+  footer { margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:16px; }
+  ul.quiet { color:var(--muted); font-size:14px; }
+  @media print {
+    body { background:#fff; }
+    .wrap { max-width:100%; padding:12px; }
+    .story, header.hero { break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Lead magnet sample · Pricewatch</div>
+    <h1>Weekly SaaS Pricing Intel — Sample Issue #1</h1>
+    <p>Free tiers shrink, AI gets bundled, and legacy plans get retired. Plain-English packaging intel for founders, PMMs, and competitive enablement — not raw DOM noise.</p>
+    <div class="meta-row">
+      <span class="pill">Week of 2026-10-27 to 2026-11-02</span>
+      <span class="pill">26 products across Email Marketing, CRM, AI &amp; Dev Tools</span>
+      <span class="pill">Generated 2026-11-02 (Africa/Lagos)</span>
+      <span class="pill">Baseline run: 20261102_005325</span>
+    </div>
+  </header>
+
+  <h2>This week’s moves</h2>
+  
+    <article class="story">
+      <div class="story-meta"><span class="badge">limit_reduction</span><span class="cat">Email Marketing</span></div>
+      <h3>1. Mailchimp: </h3>
+      <p>Mailchimp’s Free marketing plan tightened to 250 contacts and 500 monthly sends, effective 17 Feb 2026 after a mid-January support/community heads-up. Live pricing page now leans hard on “Under 250 contacts? It’s free.” — a classic freemium gate raise that pushes early-stage senders onto Essentials/Standard sooner.</p>
+      <p class="impact"><strong>Impact:</strong> High for bootstrapped newsletters and side projects still on Free. Competitor battlecards should refresh Brevo/MailerLite/Kit Free comparisons this week.</p>
+      <details><summary>Citations</summary><ul><li>MailchimpSupport community note ~13 Jan 2026 describing the Free-plan reduction</li><li>https://mailchimp.com/pricing/marketing/ (live snapshot 2 Nov 2026 WAT)</li></ul></details>
+    </article>
+    <article class="story">
+      <div class="story-meta"><span class="badge">price_increase_and_legacy_sunset</span><span class="cat">AI &amp; Dev Tools</span></div>
+      <h3>2. Linear: Basic $8→$10, Business $14→$16; legacy Plus/Standard retiring</h3>
+      <p>Live pricing extract on 2 Nov 2026 shows Basic at $10 and Business-tier signals at $16 — matching the late-2025 list-price uplift. Separately, Linear is migrating all workspaces off legacy Plus/Standard onto Basic/Business/Enterprise at the next renewal after 1 Feb 2026.</p>
+      <p class="impact"><strong>Impact:</strong> Medium–High for eng-tool buyers and anyone still on grandfathered Plus/Standard. Expect renewal sticker shock and feature-gap questions (SAML, triage, private teams).</p>
+      <details><summary>Citations</summary><ul><li>https://linear.app/docs/changes-to-linears-pricing-plans</li><li>https://linear.app/pricing (live snapshot 2 Nov 2026 WAT)</li></ul></details>
+    </article>
+    <article class="story">
+      <div class="story-meta"><span class="badge">packaging_bundle</span><span class="cat">AI &amp; Dev Tools</span></div>
+      <h3>3. Notion: AI for Work bundled; Business list price now ~$20/user</h3>
+      <p>Notion’s 13 May 2025 ‘AI for Work’ launch bundled Meeting Notes, Enterprise Search, and Research Mode into paid plans. New subscriptions took updated Business/Enterprise pricing immediately; existing customers saw changes at first renewal after 13 Aug 2025. Today’s snapshot no longer surfaces a separate Notion AI add-on — AI is the package, not the upsell.</p>
+      <p class="impact"><strong>Impact:</strong> High for teams that stacked Notion + separate AI write/search tools. Positioning shift: all-in-one AI workspace vs à-la-carte add-on.</p>
+      <details><summary>Citations</summary><ul><li>https://www.notion.com/blog/notion-ai-for-work</li><li>https://www.notion.com/pricing (live snapshot 2 Nov 2026 WAT)</li></ul></details>
+    </article>
+    <article class="story">
+      <div class="story-meta"><span class="badge">plan_rename_reposition</span><span class="cat">AI &amp; Dev Tools</span></div>
+      <h3>4. OpenAI ChatGPT: Team → Business packaging; Pro stays premium individual</h3>
+      <p>Through late Aug 2025, ChatGPT Team was repositioned toward a Business offering. Live page extract on 2 Nov 2026 lists Free / Plus / Pro / Business / Enterprise — Team as a named consumer plan is gone from the extract. Pro remains the high individual tier.</p>
+      <p class="impact"><strong>Impact:</strong> Medium for SMB AI buyers comparing seat SKUs; update “Team” references in decks to Business.</p>
+      <details><summary>Citations</summary><ul><li>https://openai.com/chatgpt/pricing/ (live snapshot 2 Nov 2026 WAT)</li><li>Aug 2025 Team→Business packaging coverage</li></ul></details>
+    </article>
+    <article class="story">
+      <div class="story-meta"><span class="badge">packaging_model_shift</span><span class="cat">AI &amp; Dev Tools</span></div>
+      <h3>5. Cursor: Credit/usage packaging replaces simple flat Pro story</h3>
+      <p>Cursor’s public pricing narrative moved from a simple Hobby/Pro/Business flat story toward Plus/Premium/Ultra-style usage tiers (live extract shows Plus ~$8 and higher Ultra-band signals). Teams/Enterprise remain for orgs. Competitors in AI coding assistants should watch credit burn messaging, not just sticker price.</p>
+      <p class="impact"><strong>Impact:</strong> Medium for developer-tool PMMs; usage caps now matter as much as seat price.</p>
+      <details><summary>Citations</summary><ul><li>https://cursor.com/pricing (live snapshot 2 Nov 2026 WAT)</li></ul></details>
+    </article>
+
+  <h2>Quiet / baseline only</h2>
+  <ul class="quiet"><li>Brevo, Kit, MailerLite, ActiveCampaign, Beehiiv — monitored; no cited material public change in this sample window.</li><li>Pipedrive, Close, Attio, Zoho CRM, Freshsales — baseline captured; watch seat + contact thresholds next cycle.</li><li>Anthropic Claude, Jasper, Copy.ai, Grammarly, GitHub Copilot, Zapier — baseline captured for ongoing diffs.</li></ul>
+
+  <h2>Monitor coverage (26 products)</h2>
+  <table>
+    <thead><tr><th>Product</th><th>Category</th><th>Snap</th><th>Extracted plans (sample)</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Mailchimp</td><td>Email Marketing</td><td>✅</td><td class='plans'>Premium ($0), Essentials ($0), Free ($0), Standard</td><td><a href="https://mailchimp.com/pricing/marketing/">pricing</a></td></tr><tr><td>Brevo</td><td>Email Marketing</td><td>✅</td><td class='plans'>Sales Advanced, Enterprise, Free SMTP server ($0)</td><td><a href="https://www.brevo.com/pricing/">pricing</a></td></tr><tr><td>Klaviyo</td><td>Email Marketing</td><td>✅</td><td class='plans'>Professional services ($0), Free tools ($0), Free ($0), Enterprise ($0)</td><td><a href="https://www.klaviyo.com/pricing">pricing</a></td></tr><tr><td>Kit (ConvertKit)</td><td>Email Marketing</td><td>✅</td><td class='plans'>Free migrations ($0), 14-day free trial ($0), + LIMITED TIME PRO OFFER ($0), Free ($0)</td><td><a href="https://kit.com/pricing">pricing</a></td></tr><tr><td>MailerLite</td><td>Email Marketing</td><td>✅</td><td class='plans'>Free resources and tools ($0), Unlimited ($0), Unlimited templates ($0), Unlimited integrations ($0)</td><td><a href="https://www.mailerlite.com/pricing">pricing</a></td></tr><tr><td>ActiveCampaign</td><td>Email Marketing</td><td>✅</td><td class='plans'>Premium segmentation and custom objects, Premium CRM integrations like Salesforce, Unlimited ($5), Plus</td><td><a href="https://www.activecampaign.com/pricing">pricing</a></td></tr><tr><td>Beehiiv</td><td>Email Marketing</td><td>✅</td><td class='plans'>Enterprise ($0), Every plan is built for growth. ($0), Free ($0), Lite ($49)</td><td><a href="https://www.beehiiv.com/pricing">pricing</a></td></tr><tr><td>Constant Contact</td><td>Email Marketing</td><td>✅</td><td class='plans'>Small Business Now ($0), Find resources to fuel your business ($0), Big ideas. Bigger icons. 100% free. ($0), Lite ($10)</td><td><a href="https://www.constantcontact.com/pricing">pricing</a></td></tr><tr><td>HubSpot</td><td>CRM</td><td>✅</td><td class='plans'>Free HubSpot CRM ($0), Free ($0), Starter ($7), Professional ($90)</td><td><a href="https://www.hubspot.com/pricing">pricing</a></td></tr><tr><td>Pipedrive</td><td>CRM</td><td>✅</td><td class='plans'>Lite ($14), Growth ($39), Premium ($59), Can my co-workers join my free trial? ($0)</td><td><a href="https://www.pipedrive.com/en/pricing">pricing</a></td></tr><tr><td>Copper</td><td>CRM</td><td>✅</td><td class='plans'>Build, personalize, scale and automate, Basic ($29), Professional ($69), 63% started off with Professional ($134)</td><td><a href="https://www.copper.com/pricing">pricing</a></td></tr><tr><td>Close</td><td>CRM</td><td>✅</td><td class='plans'>Core CRM for solo operators ($9), Essentials ($35), System of action for small teams ($35), Growth ($99)</td><td><a href="https://www.close.com/pricing">pricing</a></td></tr><tr><td>Attio</td><td>CRM</td><td>✅</td><td class='plans'>Free ($0), Plus ($44), For small teams to get started together. ($99), Continue with Plus ($99)</td><td><a href="https://attio.com/pricing">pricing</a></td></tr><tr><td>Zoho CRM</td><td>CRM</td><td>✅</td><td class='plans'>What team users, Want to try team users? ($0), Free Onboarding ($0), Standard ($0)</td><td><a href="https://www.zoho.com/crm/pricing.html">pricing</a></td></tr><tr><td>Freshsales</td><td>CRM</td><td>✅</td><td class='plans'>Growth, Built for teams that want:, Basic workflows ($19), Pro</td><td><a href="https://www.freshworks.com/crm/pricing/">pricing</a></td></tr><tr><td>monday CRM</td><td>CRM</td><td>✅</td><td class='plans'>Enterprise, Small business</td><td><a href="https://monday.com/pricing/crm">pricing</a></td></tr><tr><td>OpenAI ChatGPT</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Enterprise, Business, Free ($0), Plus ($0)</td><td><a href="https://openai.com/chatgpt/pricing/">pricing</a></td></tr><tr><td>Anthropic Claude</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Team &amp; Enterprise ($0), Free ($0), Pro ($17), 5x Pro usage ($100)</td><td><a href="https://www.anthropic.com/pricing">pricing</a></td></tr><tr><td>Cursor</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Enterprise, Teams ($0), Free ($0), Plus ($8)</td><td><a href="https://cursor.com/pricing">pricing</a></td></tr><tr><td>Notion</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Essentials for staying organized. ($0), Free ($0), Plus ($10), Business ($20)</td><td><a href="https://www.notion.com/pricing">pricing</a></td></tr><tr><td>Jasper</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Pro ($69), Agents for core marketing workflows, Business, Plan includes everything in Pro, plus:</td><td><a href="https://www.jasper.ai/pricing">pricing</a></td></tr><tr><td>Copy.ai</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Enterprise, All Advanced features, plus:, Unlimited Words in Chat ($29), Unlimited Chat Projects ($29)</td><td><a href="https://www.copy.ai/prices">pricing</a></td></tr><tr><td>Grammarly</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Free ($0), Pro ($0), Enterprise ($0), For eligible individuals and teams ($0)</td><td><a href="https://www.grammarly.com/plans">pricing</a></td></tr><tr><td>Linear</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Free ($0), Basic ($10), 5 teams ($16), Business ($16)</td><td><a href="https://linear.app/pricing">pricing</a></td></tr><tr><td>GitHub Copilot</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Free ($0), Pro ($10), Pro+ ($39), Free plan supports CLI and agent mode. ($15)</td><td><a href="https://github.com/features/copilot/plans">pricing</a></td></tr><tr><td>Zapier</td><td>AI &amp; Dev Tools</td><td>✅</td><td class='plans'>Enterprise, Free ($0), Unlimited Zaps, Tables, and Forms ($19.99), Professional ($19.99)</td><td><a href="https://zapier.com/pricing">pricing</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Method:</strong> Snapshots taken with Pricewatch open-source script (requests + headless Chrome fallback) on 2 Nov 2026, Africa/Lagos. Heuristic HTML extraction is best-effort; every story above is cross-checked against vendor blogs/docs or dated community notices.
+    Historical comparisons for Linear, Notion, Mailchimp, OpenAI, and Cursor use dated vendor docs/blogs plus reconstructed prior snapshots under data/historical/. Live prices can be A/B’d and geo-varied — treat extracts as signals, confirm on the vendor page before quoting externally.
+  </div>
+
+  <footer>
+    <p><strong>Pricewatch</strong> — weekly SaaS pricing &amp; packaging change intel. Sample issue for waitlist / lead magnet use. Not affiliated with monitored vendors.</p>
+    <p>Zero-capital build path: static site + free form waitlist + Polar (Merchant of Record) when you open paid tiers.</p>
+  </footer>
+</div>
+</body>
+</html>
