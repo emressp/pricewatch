@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://emressp.github.io/pricewatch/sitemap.xml
