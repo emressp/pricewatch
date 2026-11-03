@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Welcome to Pricewatch — set up your watchlist</title>
+  <link rel="canonical" href="https://emressp.github.io/pricewatch/welcome/" />
+  <meta name="robots" content="noindex" />
+  <meta name="description" content="You are in. Send your competitor pricing URLs so Pricewatch can start your weekly brief." />
+  <style>
+    :root {
+      --ink: #0b1220; --muted: #5b6b7c; --line: #e6ebf2; --bg: #f6f8fc;
+      --card: #fff; --brand: #4f46e5; --brand-dark: #312e81; --teal: #0d9488; --ok: #059669;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.55; }
+    a { color: var(--brand); }
+    .nav { max-width: 720px; margin: 0 auto; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; }
+    .logo span { color: var(--brand); }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 8px 20px 48px; }
+    .badge { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); background: #ccfbf1; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+    h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
+    .lede { color: var(--muted); font-size: 16px; margin: 0 0 22px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: 0 10px 30px rgba(15,23,42,.06); margin-bottom: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 18px; }
+    .card ol, .card ul { margin: 0; padding-left: 20px; color: var(--ink); }
+    .card li { margin: 6px 0; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .btn { display: inline-block; text-decoration: none; background: var(--brand); color: #fff; font-weight: 800; padding: 14px 18px; border-radius: 10px; margin-top: 14px; }
+    .btn:hover { background: var(--brand-dark); }
+    pre, .template {
+      background: #0b1220; color: #e2e8f0; border-radius: 12px; padding: 14px 16px;
+      font-size: 13px; overflow-x: auto; white-space: pre-wrap; margin: 12px 0 0;
+    }
+    .limits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+    @media (max-width: 640px) { .limits { grid-template-columns: 1fr; } }
+    .limits div { background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 13px; }
+    .limits strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    footer { max-width: 720px; margin: 0 auto; padding: 16px 20px 40px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="logo">Price<span>watch</span></div>
+    <a href="../" style="color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;">Back to site</a>
+  </nav>
+  <main class="wrap">
+    <div class="badge">Payment received · next step</div>
+    <h1>Welcome — tell us which competitors to watch.</h1>
+    <p class="lede">
+      Polar checkout succeeded. Reply with the public pricing-page URLs you want monitored and we will start your weekly plain-English brief.
+    </p>
+
+    <section class="card">
+      <h2>1. Email your watchlist (takes ~2 minutes)</h2>
+      <p class="muted">Use the button below — it opens your mail app with a ready template to <strong>getpricewatch@mail.grokbot.com</strong>.</p>
+      <a class="btn" href="mailto:getpricewatch@mail.grokbot.com?subject=Pricewatch%20onboarding&body=Hi%20Pricewatch%20team%2C%0A%0APolar%20email%20%2F%20receipt%3A%20%0APlan%20(Scout%20%2F%20Operator%20%2F%20Team)%3A%20%0ACompany%20%2F%20name%3A%20%0A%0ACompetitor%20pricing%20URLs%20to%20watch%20(one%20per%20line)%3A%20%0A1.%20https%3A%2F%2F%0A2.%20https%3A%2F%2F%0A3.%20https%3A%2F%2F%0A%0AAny%20notes%20(categories%2C%20alert%20preferences)%3A%20%0A%0AThanks%21%0A">
+        Open onboarding email →
+      </a>
+      <div class="template">To: getpricewatch@mail.grokbot.com
+Subject: Pricewatch onboarding
+
+Hi Pricewatch team,
+
+Polar email / receipt:
+Plan (Scout / Operator / Team):
+Company / name:
+
+Competitor pricing URLs to watch (one per line):
+1. https://
+2. https://
+3. https://
+
+Any notes (categories, alert preferences):
+
+Thanks!</div>
+    </section>
+
+    <section class="card">
+      <h2>2. What happens next</h2>
+      <ol>
+        <li>We confirm your plan limits and add your URLs to the private monitor.</li>
+        <li>You get a baseline snapshot, then a <strong>weekly brief</strong> (markdown/HTML) covering plan adds/removes, price moves, and limit changes.</li>
+        <li>Operator and Team also get change signals when a mid-week move is detected.</li>
+      </ol>
+      <div class="limits">
+        <div><strong>Scout — $19/mo</strong>Up to 5 competitor pages · weekly brief</div>
+        <div><strong>Operator — $49/mo</strong>Up to 20 pages · weekly + instant alerts · history</div>
+        <div><strong>Team — $99/mo</strong>Up to 50 pages · alerts · history · team access</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Tips for good URLs</h2>
+      <ul>
+        <li>Prefer the public <em>pricing</em> page (not a blog post or login wall).</li>
+        <li>One product per URL. If a vendor has regional pricing, send the page your buyers see.</li>
+        <li>You can change the list later — just email an update with the same subject line.</li>
+      </ul>
+      <p class="muted" style="margin:12px 0 0">Questions? Same inbox: <a href="mailto:getpricewatch@mail.grokbot.com">getpricewatch@mail.grokbot.com</a></p>
+    </section>
+  </main>
+  <footer>
+    <p>© 2026 Pricewatch · Payments via Polar · <a href="../">Home</a></p>
+    <p>— the Pricewatch team</p>
+  </footer>
+</body>
+</html>
