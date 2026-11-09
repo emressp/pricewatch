@@ -1,0 +1,10 @@
+{
+  "name": "pricewatch",
+  "private": true,
+  "scripts": {
+    "start": "npm start --prefix server",
+    "test": "npm test --prefix server",
+    "demo": "npm run demo --prefix server",
+    "check": "npm run check --prefix server"
+  }
+}

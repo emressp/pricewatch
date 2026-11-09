@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Change Monitor — Pricewatch</title>
+  <meta name="robots" content="noindex" />
+  <meta name="description" content="Start the Pricewatch Change Monitor service to sign up, add a URL, and get change alerts." />
+  <style>
+    :root {
+      --ink: #0b1220; --muted: #5b6b7c; --line: #e6ebf2; --bg: #f6f8fc;
+      --card: #fff; --brand: #4f46e5; --brand-dark: #312e81; --teal: #0d9488;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.55; }
+    a { color: var(--brand); }
+    .nav { max-width: 720px; margin: 0 auto; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; color: inherit; text-decoration: none; }
+    .logo span { color: var(--brand); }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 8px 20px 48px; }
+    .badge { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); background: #ccfbf1; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+    h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
+    .lede { color: var(--muted); font-size: 16px; margin: 0 0 18px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+    pre { background: #0b1220; color: #e2e8f0; border-radius: 12px; padding: 14px 16px; font-size: 13px; overflow-x: auto; }
+    .btn { display: inline-block; text-decoration: none; background: var(--brand); color: #fff; font-weight: 800; padding: 12px 16px; border-radius: 10px; margin-top: 8px; }
+    footer { max-width: 720px; margin: 0 auto; padding: 8px 20px 40px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="logo" href="../">Price<span>watch</span></a>
+    <a href="../monitor/" style="color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;">Plans</a>
+  </nav>
+  <main class="wrap">
+    <div class="badge">Change Monitor</div>
+    <h1>The app runs with the monitor service.</h1>
+    <p class="lede">This static page is what GitHub Pages shows. When the Pricewatch service is running on this host, this same address is the watchlist: sign up, add a URL, and read old-vs-new diffs.</p>
+    <div class="card">
+      <strong>Run it locally</strong>
+      <pre>cd server
+cp .env.example .env
+npm install
+npm start</pre>
+      <p>Then open <a href="http://localhost:8787/app/signup">http://localhost:8787/app/signup</a>. The free plan watches 3 URLs and checks them daily.</p>
+      <a class="btn" href="http://localhost:8787/app/signup">Open local signup</a>
+    </div>
+  </main>
+  <footer>
+    <p><a href="../monitor/">Change Monitor plans</a> · <a href="../">Pricewatch home</a></p>
+  </footer>
+</body>
+</html>

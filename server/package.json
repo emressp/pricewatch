@@ -1,0 +1,19 @@
+{
+  "name": "pricewatch-monitor",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/index.js",
+    "check": "node --disable-warning=ExperimentalWarning src/check-once.js",
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2",
+    "nodemailer": "^10.4.0"
+  }
+}
