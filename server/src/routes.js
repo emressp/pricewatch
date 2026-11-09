@@ -1,14 +1,18 @@
 import express from 'express';
 import {
-  SESSION_COOKIE, SESSION_MS, clearSessionCookie, hashPassword, newSessionToken,
-  readCookie, sessionCookie, verifyPassword,
+  CSRF_COOKIE, SESSION_COOKIE, SESSION_MS, clearSessionCookie, csrfMatches, hashPassword,
+  issueCsrf, newSessionToken, readCookie, sessionCookie, verifyPassword,
 } from './auth.js';
 import { checkMonitor } from './checker.js';
 import { assertPublicHttpUrl } from './net.js';
 import { planFor } from './plans.js';
+import { hashToken, newToken, readAlertToken } from './tokens.js';
 import {
-  changePage, dashboardPage, loginPage, monitorPage, newMonitorPage, page, signupPage,
+  changePage, dashboardPage, forgotPage, loginPage, monitorPage, newMonitorPage, page,
+  resetPage, settingsPage, signupPage,
 } from './templates.js';
+
+const HOUR = 60 * 60 * 1000;
 
 export function safeNext(value) {
   if (typeof value !== 'string') return '/app';
@@ -19,10 +23,6 @@ export function safeNext(value) {
 
 function wrap(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
-}
-
-function wantsJson(req) {
-  return String(req.headers.accept || '').includes('application/json');
 }
 
 export function createRouter(ctx) {
@@ -38,54 +38,78 @@ export function createRouter(ctx) {
     req.user = null;
     req.sessionToken = '';
     const token = readCookie(req.headers.cookie, SESSION_COOKIE);
-    if (!token) return next();
-    const session = db.findSession(token);
-    const now = new Date().toISOString();
-    if (!session || session.expiresAt <= now) {
-      if (session) db.deleteSession(token);
-      return next();
+    if (token) {
+      const session = db.findSession(token);
+      const now = new Date().toISOString();
+      if (!session || session.expiresAt <= now) {
+        if (session) db.deleteSession(token);
+      } else {
+        req.user = db.findUserById(session.userId);
+        req.sessionToken = token;
+      }
     }
-    req.user = db.findUserById(session.userId);
-    req.sessionToken = token;
+    req.csrfToken = issueCsrf(req, res, { secure: cookieSecure(req) });
+    if (req.method !== 'GET' && req.method !== 'HEAD' && !csrfMatches(req)) {
+      return res.status(403).type('html').send(page({
+        title: 'Form expired',
+        user: req.user,
+        csrf: req.csrfToken,
+        width: 640,
+        body: '<div class="card"><h1>Form expired</h1><p>Refresh the page and try again.</p></div>',
+      }));
+    }
     return next();
   }));
 
-  function secure(req) {
-    return Boolean(req.secure || req.headers['x-forwarded-proto'] === 'https');
+  function cookieSecure(req) {
+    return config.nodeEnv === 'production' || Boolean(req.secure);
   }
 
   function startSession(res, req, user) {
     const token = newSessionToken();
     const expires = new Date(Date.now() + SESSION_MS).toISOString();
     db.createSession({ token, userId: user.id, expiresAt: expires });
-    res.set('Set-Cookie', sessionCookie(token, { secure: secure(req) }));
+    res.append('Set-Cookie', sessionCookie(token, { secure: cookieSecure(req) }));
+  }
+
+  function limited(limiter, key, res) {
+    if (limiter.allow(key)) return false;
+    res.status(429).type('html').send(page({
+      title: 'Slow down',
+      user: null,
+      width: 640,
+      body: '<div class="card"><h1>Too many attempts</h1><p>Wait a few minutes and try again.</p></div>',
+    }));
+    return true;
   }
 
   router.get('/', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/signup');
-    const monitors = db.listMonitors(req.user.id);
     res.type('html').send(dashboardPage({
       user: req.user,
-      monitors,
+      monitors: db.listMonitors(req.user.id),
       config,
-      notice: req.query.notice || '',
-      error: req.query.error || '',
+      notice: String(req.query.notice || ''),
+      error: String(req.query.error || ''),
       demoUrl: absoluteDemo(req),
+      csrf: req.csrfToken,
     }));
   });
 
   router.get('/signup', (req, res) => {
     if (req.user) return res.redirect(302, '/app');
-    res.type('html').send(signupPage());
+    res.type('html').send(signupPage({ csrf: req.csrfToken }));
   });
 
   router.post('/signup', wrap(async (req, res) => {
+    if (limited(ctx.authLimiter, `signup:${req.ip}`, res)) return;
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || '');
     if (!email || password.length < 8 || password.length > 200) {
       return res.status(400).type('html').send(signupPage({
         error: 'Enter an email and a password of at least 8 characters.',
         email,
+        csrf: req.csrfToken,
       }));
     }
     const user = db.createUser({
@@ -97,18 +121,21 @@ export function createRouter(ctx) {
       return res.status(400).type('html').send(signupPage({
         error: 'That email already has an account. Log in instead.',
         email,
+        csrf: req.csrfToken,
       }));
     }
+    await sendVerifyEmail(ctx, user);
     startSession(res, req, user);
-    res.redirect(303, '/app');
+    res.redirect(303, '/app?notice=Check+your+email+to+confirm+this+address');
   }));
 
   router.get('/login', (req, res) => {
     if (req.user) return res.redirect(302, '/app');
-    res.type('html').send(loginPage());
+    res.type('html').send(loginPage({ csrf: req.csrfToken, notice: String(req.query.notice || '') }));
   });
 
   router.post('/login', wrap(async (req, res) => {
+    if (limited(ctx.authLimiter, `login:${req.ip}`, res)) return;
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || '');
     const user = email ? db.findUserByEmail(email) : null;
@@ -117,6 +144,7 @@ export function createRouter(ctx) {
       return res.status(400).type('html').send(loginPage({
         error: 'Email or password is not right.',
         email,
+        csrf: req.csrfToken,
       }));
     }
     startSession(res, req, user);
@@ -125,9 +153,136 @@ export function createRouter(ctx) {
 
   router.post('/logout', (req, res) => {
     if (req.sessionToken) db.deleteSession(req.sessionToken);
-    res.set('Set-Cookie', clearSessionCookie());
+    res.append('Set-Cookie', clearSessionCookie());
     res.redirect(303, '/app/login');
   });
+
+  router.get('/forgot', (req, res) => {
+    res.type('html').send(forgotPage({ csrf: req.csrfToken, notice: String(req.query.notice || '') }));
+  });
+
+  router.post('/forgot', wrap(async (req, res) => {
+    if (limited(ctx.authLimiter, `forgot:${req.ip}`, res)) return;
+    const email = normalizeEmail(req.body?.email);
+    const user = email ? db.findUserByEmail(email) : null;
+    if (user) await sendResetEmail(ctx, user);
+    res.redirect(303, '/app/forgot?notice=If+that+account+exists%2C+we+sent+a+reset+link');
+  }));
+
+  router.get('/reset', (req, res) => {
+    res.type('html').send(resetPage({ token: String(req.query.token || ''), csrf: req.csrfToken }));
+  });
+
+  router.post('/reset', wrap(async (req, res) => {
+    if (limited(ctx.authLimiter, `reset:${req.ip}`, res)) return;
+    const token = String(req.body?.token || '');
+    const password = String(req.body?.password || '');
+    const row = token ? db.findEmailToken(hashToken(token), 'reset') : null;
+    if (!row || row.expiresAt < new Date().toISOString() || password.length < 8 || password.length > 200) {
+      return res.status(400).type('html').send(resetPage({
+        token,
+        csrf: req.csrfToken,
+        error: 'That reset link is invalid or expired. Request a new one.',
+      }));
+    }
+    db.sqlite.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(password), row.userId);
+    db.deleteEmailTokens(row.userId, 'reset');
+    db.deleteUserSessions(row.userId);
+    res.redirect(303, '/app/login?notice=Password+updated.+Log+in+with+the+new+one');
+  }));
+
+  router.get('/verify', (req, res) => {
+    const token = String(req.query.token || '');
+    const row = token ? db.findEmailToken(hashToken(token), 'verify') : null;
+    if (!row || row.expiresAt < new Date().toISOString()) {
+      return res.status(400).type('html').send(page({
+        title: 'Link expired',
+        user: req.user,
+        csrf: req.csrfToken,
+        width: 640,
+        body: '<div class="card"><h1>That link has expired</h1><p><a href="/app">Back to your account</a> and send a new confirmation email.</p></div>',
+      }));
+    }
+    db.markEmailVerified(row.userId, new Date().toISOString());
+    db.deleteEmailTokens(row.userId, 'verify');
+    res.redirect(303, '/app?notice=Email+confirmed');
+  });
+
+  router.post('/verify/resend', wrap(async (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    if (limited(ctx.authLimiter, `verify:${req.user.id}`, res)) return;
+    if (!req.user.emailVerifiedAt) await sendVerifyEmail(ctx, req.user);
+    res.redirect(303, '/app?notice=Confirmation+email+sent');
+  }));
+
+  router.get('/settings', (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    res.type('html').send(settingsPage({
+      user: db.findUserById(req.user.id),
+      config,
+      csrf: req.csrfToken,
+      notice: String(req.query.notice || ''),
+      error: String(req.query.error || ''),
+    }));
+  });
+
+  router.post('/settings/alerts', (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    db.setAlertsEnabled(req.user.id, req.body?.alerts === '1');
+    res.redirect(303, '/app/settings?notice=Alert+settings+saved');
+  });
+
+  router.post('/account/delete', (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    db.deleteUser(req.user.id);
+    res.append('Set-Cookie', clearSessionCookie());
+    res.redirect(303, '/app/signup?notice=Account+deleted');
+  });
+
+  router.get('/unsubscribe', (req, res) => {
+    const parsed = readAlertToken(req.query.token, config.sessionSecret);
+    const user = parsed ? db.findUserById(parsed.id) : null;
+    if (!user || user.email !== parsed.email) {
+      return res.status(400).type('html').send(page({
+        title: 'Unsubscribe',
+        width: 640,
+        body: '<div class="card"><h1>That unsubscribe link is not valid</h1></div>',
+      }));
+    }
+    db.setAlertsEnabled(user.id, false);
+    res.type('html').send(page({
+      title: 'Unsubscribed',
+      user: req.user,
+      csrf: req.csrfToken,
+      width: 640,
+      body: `<div class="card"><h1>Alerts are off</h1><p>We will not email ${escapeHtml(user.email)} about page changes. The history stays in your account. <a href="/app/settings">Turn alerts back on</a>.</p></div>`,
+    }));
+  });
+
+  router.post('/billing/checkout', wrap(async (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    const plan = req.body?.plan === 'research' ? 'research' : 'seller';
+    try {
+      const session = await ctx.billing.createCheckout({
+        user: req.user,
+        plan,
+        customerIp: req.ip,
+      });
+      res.redirect(303, session.url);
+    } catch (err) {
+      res.redirect(303, `/app/settings?error=${encodeURIComponent(err.message || 'Checkout failed')}`);
+    }
+  }));
+
+  router.post('/billing/portal', wrap(async (req, res) => {
+    if (!req.user) return res.redirect(302, '/app/login');
+    try {
+      const session = await ctx.billing.createPortal({ user: req.user });
+      res.redirect(303, session.url);
+    } catch (err) {
+      res.redirect(303, `/app/settings?error=${encodeURIComponent(err.message || 'Could not open the billing portal')}`);
+    }
+  }));
 
   router.get('/monitors/new', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
@@ -137,24 +292,29 @@ export function createRouter(ctx) {
       user: req.user,
       values: { url, label, mode: req.query.mode === 'price' ? 'price' : 'all', frequency: 'daily' },
       demoHint: config.demoEnabled ? `Local sample: ${absoluteDemo(req)}` : '',
+      csrf: req.csrfToken,
     }));
   });
 
   router.post('/monitors', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    const values = {
-      url: String(req.body?.url || '').trim(),
-      label: String(req.body?.label || '').trim().slice(0, 120),
-      selector: String(req.body?.selector || '').trim().slice(0, 200),
-      mode: req.body?.mode === 'price' ? 'price' : 'all',
-      frequency: req.body?.frequency === 'hourly' ? 'hourly' : 'daily',
-    };
+    if (!ctx.urlLimiter.allow(`url:${req.user.id}`)) {
+      return res.status(429).type('html').send(newMonitorPage({
+        user: req.user,
+        error: 'Too many URLs added in a short time. Wait and try again.',
+        values: {},
+        csrf: req.csrfToken,
+      }));
+    }
+    const values = readMonitorForm(req);
     const fail = (error) => res.status(400).type('html').send(newMonitorPage({
       user: req.user,
       error,
       values,
       demoHint: config.demoEnabled ? `Local sample: ${absoluteDemo(req)}` : '',
+      csrf: req.csrfToken,
     }));
+    if (!req.user.emailVerifiedAt) return fail('Confirm your email before adding a URL.');
     if (values.selector.includes('<') || values.selector.includes('{') || values.selector.includes('}')) {
       return fail('That CSS selector is not valid.');
     }
@@ -191,7 +351,7 @@ export function createRouter(ctx) {
   router.get('/monitors/:id', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
     const monitor = db.findMonitor(Number(req.params.id), req.user.id);
-    if (!monitor) return notFound(res, req.user);
+    if (!monitor) return notFound(res, req);
     res.type('html').send(monitorPage({
       user: req.user,
       monitor,
@@ -200,21 +360,23 @@ export function createRouter(ctx) {
       config,
       notice: String(req.query.notice || ''),
       error: String(req.query.error || ''),
+      csrf: req.csrfToken,
     }));
   });
 
   router.post('/monitors/:id/check', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
     const monitor = db.findMonitor(Number(req.params.id), req.user.id);
-    if (!monitor) return notFound(res, req.user);
+    if (!monitor) return notFound(res, req);
     const result = await checkMonitor(ctx, monitor);
-    const notice = noticeFor(result);
-    const error = result.status === 'error' || result.status === 'blocked' ? result.error : '';
+    if (result.changeId) return res.redirect(303, `/app/changes/${result.changeId}`);
     const params = new URLSearchParams();
+    const notice = noticeFor(result);
     if (notice) params.set('notice', notice);
-    if (error) params.set('error', error);
+    if (result.status === 'error' || result.status === 'blocked' || result.status === 'paused') {
+      params.set('error', result.error || 'Check failed');
+    }
     const suffix = params.toString() ? `?${params}` : '';
-    if (result.changeId && !wantsJson(req)) return res.redirect(303, `/app/changes/${result.changeId}`);
     res.redirect(303, `/app/monitors/${monitor.id}${suffix}`);
   }));
 
@@ -227,32 +389,79 @@ export function createRouter(ctx) {
   router.get('/changes/:id', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
     const change = db.findChange(Number(req.params.id), req.user.id);
-    if (!change) return notFound(res, req.user);
+    if (!change) return notFound(res, req);
     res.type('html').send(changePage({
       user: req.user,
       change,
       before: change.previousSnapshotId ? db.getSnapshot(change.previousSnapshotId) : null,
       after: db.getSnapshot(change.snapshotId),
+      csrf: req.csrfToken,
     }));
   });
 
   router.post('/plan', (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    if (!config.allowPlanSwitch) return res.redirect(303, '/app?error=Plan+changes+are+turned+off');
+    if (!config.allowPlanSwitch) return res.redirect(303, '/app/settings?error=Plan+changes+are+turned+off');
     const plan = ['free', 'seller', 'research'].includes(req.body?.plan) ? req.body.plan : '';
-    if (!plan) return res.redirect(303, '/app?error=Unknown+plan');
+    if (!plan) return res.redirect(303, '/app/settings?error=Unknown+plan');
     db.setPlan(req.user.id, plan);
     res.redirect(303, '/app?notice=Plan+updated');
   });
 
-  router.use((req, res) => notFound(res, req.user));
+  router.use((req, res) => notFound(res, req));
   return router;
+}
+
+async function sendVerifyEmail(ctx, user) {
+  const token = newToken();
+  const now = new Date();
+  ctx.db.createEmailToken({
+    userId: user.id,
+    purpose: 'verify',
+    tokenHash: hashToken(token),
+    expiresAt: new Date(now.getTime() + 24 * HOUR).toISOString(),
+    createdAt: now.toISOString(),
+  });
+  const link = `${ctx.config.appBaseUrl}/app/verify?token=${token}`;
+  await ctx.mailer.send({
+    to: user.email,
+    subject: 'Confirm your Pricewatch email',
+    text: `Confirm this address to start watching pages:\n\n${link}\n\nThe link expires in 24 hours.`,
+  });
+}
+
+async function sendResetEmail(ctx, user) {
+  const token = newToken();
+  const now = new Date();
+  ctx.db.createEmailToken({
+    userId: user.id,
+    purpose: 'reset',
+    tokenHash: hashToken(token),
+    expiresAt: new Date(now.getTime() + HOUR).toISOString(),
+    createdAt: now.toISOString(),
+  });
+  const link = `${ctx.config.appBaseUrl}/app/reset?token=${token}`;
+  await ctx.mailer.send({
+    to: user.email,
+    subject: 'Reset your Pricewatch password',
+    text: `Set a new password:\n\n${link}\n\nThe link expires in one hour. If you did not ask for this, ignore it.`,
+  });
 }
 
 function normalizeEmail(value) {
   const email = String(value || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return '';
   return email;
+}
+
+function readMonitorForm(req) {
+  return {
+    url: String(req.body?.url || '').trim(),
+    label: String(req.body?.label || '').trim().slice(0, 120),
+    selector: String(req.body?.selector || '').trim().slice(0, 200),
+    mode: req.body?.mode === 'price' ? 'price' : 'all',
+    frequency: req.body?.frequency === 'hourly' ? 'hourly' : 'daily',
+  };
 }
 
 function labelFromUrl(url) {
@@ -285,11 +494,20 @@ function noticeFor(result) {
   return '';
 }
 
-function notFound(res, user) {
+function notFound(res, req) {
   res.status(404).type('html').send(page({
     title: 'Not found',
-    user,
+    user: req.user,
+    csrf: req.csrfToken,
     width: 640,
     body: '<div class="card"><h1>Page not found</h1><p><a href="/app">Back to your monitors</a></p></div>',
   }));
 }
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
+export { CSRF_COOKIE };

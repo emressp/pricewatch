@@ -29,15 +29,18 @@ ctx.config.appBaseUrl = base;
 
 const jar = new Map();
 async function request(urlPath, { method = 'GET', form, body, headers } = {}) {
+  const payload = form ? { ...form } : null;
+  if (payload && payload._csrf == null && jar.has('pw_csrf')) payload._csrf = decodeURIComponent(jar.get('pw_csrf'));
   const response = await fetch(base + urlPath, {
     method,
     redirect: 'manual',
     headers: {
-      ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+      ...(payload ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+      ...(jar.has('pw_csrf') ? { 'x-csrf-token': decodeURIComponent(jar.get('pw_csrf')) } : {}),
       ...(jar.size ? { cookie: [...jar].map(([key, value]) => `${key}=${value}`).join('; ') } : {}),
       ...headers,
     },
-    body: form ? new URLSearchParams(form).toString() : body,
+    body: payload ? new URLSearchParams(payload).toString() : body,
   });
   for (const item of response.headers.getSetCookie?.() || []) {
     const pair = item.split(';')[0];
@@ -47,11 +50,17 @@ async function request(urlPath, { method = 'GET', form, body, headers } = {}) {
   return { status: response.status, location: response.headers.get('location') || '', text: await response.text() };
 }
 
+await request('/app/signup');
 const signup = await request('/app/signup', {
   method: 'POST',
   form: { email: 'demo@example.com', password: 'correct-horse' },
 });
 if (signup.status !== 303) throw new Error(`signup failed (${signup.status})`);
+const verifyFile = (await readdir(outbox)).find((name) => name.endsWith('.txt'));
+const verifyMail = await readFile(path.join(outbox, verifyFile), 'utf8');
+const verifyToken = verifyMail.match(/token=([a-f0-9]+)/)[1];
+const verified = await request(`/app/verify?token=${verifyToken}`);
+if (verified.status !== 303) throw new Error(`email confirmation failed (${verified.status})`);
 
 const created = await request('/app/monitors', {
   method: 'POST',
@@ -76,11 +85,19 @@ if (!checked.location.startsWith('/app/changes/')) {
 }
 
 const files = (await readdir(outbox)).filter((name) => name.endsWith('.txt'));
-if (files.length !== 1) throw new Error(`expected 1 alert email, found ${files.length}`);
-const email = await readFile(path.join(outbox, files[0]), 'utf8');
+let email = '';
+let emailFile = '';
+for (const name of files) {
+  const text = await readFile(path.join(outbox, name), 'utf8');
+  if (text.includes('Old vs new:')) {
+    email = text;
+    emailFile = name;
+  }
+}
+if (!email) throw new Error('expected an alert email');
 console.log('Updated the sample: Trail kit $29/mo → $34/mo, removed Base camp, added Expedition pack.');
 console.log(`Second check: change ${base}${checked.location}`);
-console.log(`Alert email written to ${path.join(outbox, files[0])}`);
+console.log(`Alert email written to ${path.join(outbox, emailFile)}`);
 console.log('\n----- email -----\n');
 console.log(email.trim());
 console.log('\n----- end -----\n');

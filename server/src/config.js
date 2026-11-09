@@ -70,5 +70,14 @@ export function loadConfig(env = process.env) {
       secure: flag(env.SMTP_SECURE, false),
     },
     staticRoot: env.STATIC_ROOT || repoRoot,
+    polarAccessToken: env.POLAR_ACCESS_TOKEN || '',
+    polarWebhookSecret: env.POLAR_WEBHOOK_SECRET || '',
+    polarSellerProductId: env.POLAR_SELLER_PRODUCT_ID || '',
+    polarResearchProductId: env.POLAR_RESEARCH_PRODUCT_ID || '',
+    polarServer: env.POLAR_SERVER === 'sandbox' ? 'sandbox' : 'production',
+    authRateLimit: Number(env.AUTH_RATE_LIMIT || 10),
+    authRateWindowMs: Number(env.AUTH_RATE_WINDOW_MS || 15 * 60 * 1000),
+    urlRateLimit: Number(env.URL_RATE_LIMIT || 30),
+    urlRateWindowMs: Number(env.URL_RATE_WINDOW_MS || 60 * 60 * 1000),
   };
 }

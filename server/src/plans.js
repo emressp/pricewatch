@@ -34,3 +34,9 @@ export function effectiveFrequency(planId, frequency) {
 export function intervalMs(frequency) {
   return frequency === 'hourly' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 }
+
+export function monitorsWithinPlan(monitors, max) {
+  return new Set(
+    [...monitors].sort((a, b) => a.id - b.id).slice(0, Math.max(0, max)).map((monitor) => monitor.id),
+  );
+}

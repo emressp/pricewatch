@@ -8,7 +8,22 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   plan TEXT NOT NULL DEFAULT 'free',
+  created_at TEXT NOT NULL,
+  email_verified_at TEXT,
+  billing_customer_id TEXT,
+  alerts_enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS email_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS billing_events (
+  id TEXT PRIMARY KEY,
+  received_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
@@ -60,10 +75,18 @@ CREATE INDEX IF NOT EXISTS idx_monitors_user ON monitors(user_id);
 CREATE INDEX IF NOT EXISTS idx_snapshots_monitor ON snapshots(monitor_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_changes_monitor ON changes(monitor_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id, purpose);
+CREATE INDEX IF NOT EXISTS idx_users_billing ON users(billing_customer_id);
 `;
 
+const USER_COLUMN_MIGRATIONS = [
+  'ALTER TABLE users ADD COLUMN email_verified_at TEXT',
+  'ALTER TABLE users ADD COLUMN billing_customer_id TEXT',
+  'ALTER TABLE users ADD COLUMN alerts_enabled INTEGER NOT NULL DEFAULT 1',
+];
+
 const MONITOR_SELECT = `
-SELECT monitors.*, users.email AS user_email, users.plan AS user_plan
+SELECT monitors.*, users.email AS user_email, users.plan AS user_plan, users.alerts_enabled AS alerts_enabled
 FROM monitors
 JOIN users ON users.id = monitors.user_id
 `;
@@ -84,6 +107,9 @@ function userFromRow(row) {
     passwordHash: row.password_hash,
     plan: row.plan,
     createdAt: row.created_at,
+    emailVerifiedAt: row.email_verified_at || null,
+    billingCustomerId: row.billing_customer_id || '',
+    alertsEnabled: row.alerts_enabled == null ? true : Number(row.alerts_enabled) !== 0,
   };
 }
 
@@ -105,6 +131,7 @@ function monitorFromRow(row) {
     contentHash: row.content_hash,
     userEmail: row.user_email,
     userPlan: row.user_plan,
+    alertsEnabled: row.alerts_enabled == null ? true : Number(row.alerts_enabled) !== 0,
   };
 }
 
@@ -135,6 +162,8 @@ function changeFromRow(row) {
     url: row.url,
     label: row.label,
     userEmail: row.user_email,
+    userId: row.owner_id || row.user_id,
+    alertsEnabled: row.alerts_enabled == null ? true : Number(row.alerts_enabled) !== 0,
   };
 }
 
@@ -145,6 +174,11 @@ export function openDatabase(file) {
   sqlite.exec('PRAGMA busy_timeout = 3000;');
   if (file !== ':memory:') sqlite.exec('PRAGMA journal_mode = WAL;');
   sqlite.exec(SCHEMA);
+  for (const statement of USER_COLUMN_MIGRATIONS) {
+    try { sqlite.exec(statement); } catch (err) {
+      if (!/duplicate column/i.test(String(err.message))) throw err;
+    }
+  }
   return createRepo(sqlite);
 }
 
@@ -166,6 +200,9 @@ function createRepo(sqlite) {
     close() {
       sqlite.close();
     },
+    ping() {
+      sqlite.prepare('SELECT 1 AS ok').get();
+    },
     createUser({ email, passwordHash, plan = 'free', createdAt }) {
       try {
         const info = sqlite.prepare(
@@ -185,6 +222,57 @@ function createRepo(sqlite) {
     },
     setPlan(userId, plan) {
       sqlite.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, userId);
+    },
+    setBillingCustomer(userId, customerId) {
+      sqlite.prepare('UPDATE users SET billing_customer_id = ? WHERE id = ?').run(customerId, userId);
+    },
+    findUserByBillingCustomer(customerId) {
+      return userFromRow(sqlite.prepare('SELECT * FROM users WHERE billing_customer_id = ?').get(customerId));
+    },
+    markEmailVerified(userId, whenIso) {
+      sqlite.prepare('UPDATE users SET email_verified_at = ? WHERE id = ?').run(whenIso, userId);
+    },
+    setAlertsEnabled(userId, enabled) {
+      sqlite.prepare('UPDATE users SET alerts_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
+    },
+    deleteUser(userId) {
+      sqlite.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    },
+    deleteUserSessions(userId) {
+      sqlite.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    },
+    createEmailToken({ userId, purpose, tokenHash, expiresAt, createdAt }) {
+      sqlite.prepare('DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?').run(userId, purpose);
+      sqlite.prepare(
+        'INSERT INTO email_tokens (user_id, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
+      ).run(userId, purpose, tokenHash, expiresAt, createdAt);
+    },
+    findEmailToken(tokenHash, purpose) {
+      const row = sqlite.prepare(
+        'SELECT * FROM email_tokens WHERE token_hash = ? AND purpose = ?',
+      ).get(tokenHash, purpose);
+      if (!row) return null;
+      return {
+        id: row.id,
+        userId: row.user_id,
+        purpose: row.purpose,
+        expiresAt: row.expires_at,
+      };
+    },
+    deleteEmailTokens(userId, purpose) {
+      sqlite.prepare('DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?').run(userId, purpose);
+    },
+    claimBillingEvent(id, receivedAt) {
+      try {
+        sqlite.prepare('INSERT INTO billing_events (id, received_at) VALUES (?, ?)').run(id, receivedAt);
+        return true;
+      } catch (err) {
+        if (String(err.message).includes('UNIQUE') || String(err.message).includes('PRIMARY')) return false;
+        throw err;
+      }
+    },
+    forgetBillingEvent(id) {
+      sqlite.prepare('DELETE FROM billing_events WHERE id = ?').run(id);
     },
     createSession({ token, userId, expiresAt }) {
       sqlite.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, userId, expiresAt);
@@ -285,7 +373,8 @@ function createRepo(sqlite) {
     },
     findChange(id, userId) {
       return changeFromRow(sqlite.prepare(`
-        SELECT changes.*, monitors.url, monitors.label, users.email AS user_email
+        SELECT changes.*, monitors.url, monitors.label, users.email AS user_email,
+               users.id AS owner_id, users.alerts_enabled AS alerts_enabled
         FROM changes
         JOIN monitors ON monitors.id = changes.monitor_id
         JOIN users ON users.id = monitors.user_id
@@ -294,7 +383,8 @@ function createRepo(sqlite) {
     },
     listUnalerted(limit = 20) {
       return sqlite.prepare(`
-        SELECT changes.*, monitors.url, monitors.label, users.email AS user_email
+        SELECT changes.*, monitors.url, monitors.label, users.email AS user_email,
+               users.id AS owner_id, users.alerts_enabled AS alerts_enabled
         FROM changes
         JOIN monitors ON monitors.id = changes.monitor_id
         JOIN users ON users.id = monitors.user_id

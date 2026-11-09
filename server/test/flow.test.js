@@ -30,15 +30,18 @@ async function start() {
   ctx.config.appBaseUrl = `http://127.0.0.1:${port}`;
   const jar = new Map();
   async function request(urlPath, { method = 'GET', form, body, headers } = {}) {
+    const payload = form ? { ...form } : null;
+    if (payload && payload._csrf == null && jar.has('pw_csrf')) payload._csrf = decodeURIComponent(jar.get('pw_csrf'));
     const response = await fetch(`http://127.0.0.1:${port}${urlPath}`, {
       method,
       redirect: 'manual',
       headers: {
-        ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+        ...(payload ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+        ...(jar.has('pw_csrf') ? { 'x-csrf-token': decodeURIComponent(jar.get('pw_csrf')) } : {}),
         ...(jar.size ? { cookie: [...jar].map(([key, value]) => `${key}=${value}`).join('; ') } : {}),
         ...headers,
       },
-      body: form ? new URLSearchParams(form).toString() : body,
+      body: payload ? new URLSearchParams(payload).toString() : body,
     });
     for (const item of response.headers.getSetCookie?.() || []) {
       const pair = item.split(';')[0];
@@ -70,6 +73,7 @@ test('the marketing pages and the app shell are served together', async () => {
     assert.equal(home.status, 200);
     assert.match(home.text, /Website Change Monitor/);
     assert.match(home.text, /href="app\/"/);
+    assert.match(home.text, /buy\.polar\.sh\/polar_cl_8YWq401nq9e6UlHBeSqXP4TUUdqInBmtRsI0S1UlLwO/);
     const plans = await app.request('/monitor/');
     assert.equal(plans.status, 200);
     assert.match(plans.text, /Research/);
@@ -89,11 +93,16 @@ test('the marketing pages and the app shell are served together', async () => {
 test('a sample page change is detected and an alert email is written', async () => {
   const app = await start();
   try {
+    await app.request('/app/signup');
     const signup = await app.request('/app/signup', {
       method: 'POST',
       form: { email: 'ada@example.com', password: 'correct-horse' },
     });
     assert.equal(signup.status, 303);
+    const verifyMail = await readFile(path.join(app.outbox, (await listOutbox(app.outbox))[0]), 'utf8');
+    const token = verifyMail.match(/token=([a-f0-9]+)/)[1];
+    const verified = await app.request(`/app/verify?token=${token}`);
+    assert.equal(verified.status, 303);
 
     const created = await app.request('/app/monitors', {
       method: 'POST',
@@ -125,7 +134,7 @@ test('a sample page change is detected and an alert email is written', async () 
     const first = await checkDueMonitors(app.ctx);
     assert.equal(first.length, 1);
     assert.equal(first[0].status, 'baseline');
-    assert.deepEqual(await listOutbox(app.outbox), []);
+    assert.equal((await Promise.all((await listOutbox(app.outbox)).map((name) => readFile(path.join(app.outbox, name), 'utf8')))).some((text) => text.includes('Old vs new:')), false);
 
     const baselinePage = await app.request(monitorPath);
     assert.match(baselinePage.text, /Baseline saved/);
@@ -153,8 +162,9 @@ test('a sample page change is detected and an alert email is written', async () 
     assert.doesNotMatch(diffPage.text, /5 business days/);
 
     const files = await listOutbox(app.outbox);
-    assert.equal(files.length, 1);
-    const email = await readFile(path.join(app.outbox, files[0]), 'utf8');
+    const emails = await Promise.all(files.map((name) => readFile(path.join(app.outbox, name), 'utf8')));
+    const email = emails.find((text) => text.includes('Old vs new:'));
+    assert.ok(email);
     assert.match(email, /To: ada@example.com/);
     assert.match(email, /Trail kit: \$29\/mo → \$34\/mo/);
     assert.match(email, /Old vs new:/);

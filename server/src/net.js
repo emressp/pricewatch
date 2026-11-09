@@ -12,6 +12,7 @@ export function isLoopback(hostname) {
 export function isBlockedHost(hostname) {
   const host = normalizeHost(hostname);
   if (!host) return true;
+  if (/^\d+$/.test(host) || /^0x[0-9a-f.]+$/i.test(host)) return true;
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
   if (host === 'metadata.google.internal' || host === 'metadata.google.com') return true;
   if (host.startsWith('::ffff:')) return isBlockedHost(host.slice(7));

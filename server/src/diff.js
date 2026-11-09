@@ -107,7 +107,7 @@ export function buildChange(previous, next) {
   };
 }
 
-export function renderEmail({ monitor, diff, changeUrl }) {
+export function renderEmail({ monitor, diff, changeUrl, manageUrl = '', unsubscribeUrl = '' }) {
   const label = monitor.label || monitor.url;
   let subjectCore = diff.priceChanges?.length ? diff.summary : `${label} changed`;
   if (subjectCore.length > 110) subjectCore = `${subjectCore.slice(0, 107)}...`;
@@ -134,7 +134,10 @@ export function renderEmail({ monitor, diff, changeUrl }) {
   if (shown.length) {
     parts.push('Old vs new:', ...shown, '');
   }
-  parts.push(`View the full diff: ${changeUrl}`, '', 'You get this email because this URL is in your Pricewatch Change Monitor.');
+  parts.push(`View the full diff: ${changeUrl}`);
+  if (manageUrl) parts.push(`Alert settings: ${manageUrl}`);
+  if (unsubscribeUrl) parts.push(`Unsubscribe: ${unsubscribeUrl}`);
+  parts.push('', 'You get this email because this URL is in your Pricewatch Change Monitor.');
   return {
     subject: `Pricewatch: ${subjectCore}`,
     text: parts.join('\n'),

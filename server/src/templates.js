@@ -54,6 +54,8 @@ tr:last-child td { border-bottom: 0; }
 .pill.changed { background: #fef3c7; color: #92400e; }
 .pill.error, .pill.blocked { background: #fee2e2; color: #991b1b; }
 .pill.unchanged, .pill.baseline { background: #d1fae5; color: #065f46; }
+.pill.paused { background: #fef3c7; color: #92400e; }
+.fine { color: var(--muted); font-size: 12px; margin-top: 28px; }
 .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 800px) { .diff-grid { grid-template-columns: 1fr; } }
 .snap { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
@@ -96,10 +98,14 @@ function statusPill(status) {
   return `<span class="pill ${esc(status)}">${esc(label)}</span>`;
 }
 
-export function page({ title, user, body, width = 1040 }) {
+function csrfField(token) {
+  return `<input type="hidden" name="_csrf" value="${esc(token || '')}" />`;
+}
+
+export function page({ title, user, body, width = 1040, csrf = '' }) {
   const navRight = user
-    ? `<span class="user-email">${esc(user.email)}</span>
-       <form method="post" action="/app/logout" style="margin:0"><button class="btn-sm" type="submit">Log out</button></form>`
+    ? `<a class="link" href="/app/settings">Settings</a><span class="user-email">${esc(user.email)}</span>
+       <form method="post" action="/app/logout" style="margin:0">${csrfField(csrf)}<button class="btn-sm" type="submit">Log out</button></form>`
     : `<a class="link" href="/app/login">Log in</a><a class="btn-sm" href="/app/signup">Start free</a>`;
   return `<!DOCTYPE html>
 <html lang="en">
@@ -119,6 +125,7 @@ export function page({ title, user, body, width = 1040 }) {
     </div>
   </nav>
   <main class="wrap" style="max-width:${width}px">${body}</main>
+  <footer class="fine" style="max-width:${width}px;margin:0 auto;padding:0 20px 32px"><a href="/terms/">Terms</a> · <a href="/privacy/">Privacy</a> · <a href="/app/settings">Alert settings</a></footer>
 </body>
 </html>`;
 }
@@ -127,15 +134,17 @@ function banner(error, notice) {
   return `${error ? `<p class="error">${esc(error)}</p>` : ''}${notice ? `<p class="notice">${esc(notice)}</p>` : ''}`;
 }
 
-export function signupPage({ error = '', email = '' } = {}) {
+export function signupPage({ error = '', email = '', csrf = '' } = {}) {
   return page({
     title: 'Create your account',
+    csrf,
     width: 520,
     body: `<h1>Watch a page for free.</h1>
       <p class="lede">The Watch plan covers 3 URLs, checked daily. You’ll get an email when prices, products, or the page details change.</p>
       <div class="card">
         ${banner(error)}
         <form method="post" action="/app/signup">
+          ${csrfField(csrf)}
           <label for="email">Email</label>
           <input id="email" name="email" type="email" autocomplete="email" required value="${esc(email)}" />
           <label for="password">Password</label>
@@ -148,15 +157,17 @@ export function signupPage({ error = '', email = '' } = {}) {
   });
 }
 
-export function loginPage({ error = '', email = '' } = {}) {
+export function loginPage({ error = '', email = '', notice = '', csrf = '' } = {}) {
   return page({
     title: 'Log in',
+    csrf,
     width: 520,
     body: `<h1>Log in</h1>
       <p class="lede">Open your Change Monitor watchlist.</p>
       <div class="card">
-        ${banner(error)}
+        ${banner(error, notice)}
         <form method="post" action="/app/login">
+          ${csrfField(csrf)}
           <label for="email">Email</label>
           <input id="email" name="email" type="email" autocomplete="email" required value="${esc(email)}" />
           <label for="password">Password</label>
@@ -164,11 +175,11 @@ export function loginPage({ error = '', email = '' } = {}) {
           <button class="btn btn-primary" type="submit">Log in</button>
         </form>
       </div>
-      <p class="muted">New here? <a href="/app/signup">Create a free account</a></p>`,
+      <p class="muted">New here? <a href="/app/signup">Create a free account</a> · <a href="/app/forgot">Forgot password</a></p>`,
   });
 }
 
-export function dashboardPage({ user, monitors, config, notice = '', error = '', demoUrl = '' }) {
+export function dashboardPage({ user, monitors, config, notice = '', error = '', demoUrl = '', csrf = '' }) {
   const plan = planFor(user.plan);
   const rows = monitors.map((monitor) => {
     const when = formatWhen(monitor.lastCheckedAt);
@@ -197,16 +208,19 @@ export function dashboardPage({ user, monitors, config, notice = '', error = '',
       <h2>Plan</h2>
       <p class="muted">Switching plans here is for local development. In production, set the plan from your biller. See the README.</p>
       <form method="post" action="/app/plan" class="row">
+        ${csrfField(csrf)}
         <select name="plan" aria-label="Plan" style="width:auto;min-width:240px">
           ${Object.values({ free: planFor('free'), seller: planFor('seller'), research: planFor('research') }).map((item) =>
             `<option value="${item.id}"${item.id === user.plan ? ' selected' : ''}>${esc(item.name)} · ${esc(item.price)} · ${item.maxMonitors} URLs</option>`).join('')}
         </select>
         <button class="btn btn-ghost" type="submit">Switch plan</button>
       </form>
-    </div>` : `<p class="muted">Seller ($19/mo, 25 URLs, hourly) and Research ($49/mo, 100 URLs, hourly) are enforced in the app. Connect billing before charging — see the README.</p>`;
+    </div>` : `<p class="muted"><a href="/app/settings">Seller ($19/mo) and Research ($49/mo)</a> are billed with Polar in the existing Pricewatch organization.</p>`;
+  const verify = user.emailVerifiedAt ? '' : `<div class="card"><h2>Confirm your email</h2><p class="muted">We sent a link to ${esc(user.email)}. You can add URLs after you open it.</p><form method="post" action="/app/verify/resend">${csrfField(csrf)}<button class="btn btn-ghost" type="submit">Resend confirmation</button></form></div>`;
   return page({
     title: 'Your monitors',
     user,
+    csrf,
     body: `<div class="row" style="justify-content:space-between;align-items:flex-end">
         <div>
           <h1>Your monitors</h1>
@@ -215,6 +229,7 @@ export function dashboardPage({ user, monitors, config, notice = '', error = '',
         <a class="btn btn-primary" href="/app/monitors/new">Add a URL</a>
       </div>
       ${banner(error, notice)}
+      ${verify}
       ${monitors.length ? table : empty}
       ${demo}
       ${upgrade}`,
@@ -227,7 +242,7 @@ function frequencyLabel(planId, frequency) {
   return frequency === 'hourly' ? 'Hourly' : 'Daily';
 }
 
-export function newMonitorPage({ user, error = '', values = {}, demoHint = '' }) {
+export function newMonitorPage({ user, error = '', values = {}, demoHint = '', csrf = '' }) {
   const plan = planFor(user.plan);
   const hourlyOk = plan.frequencies.includes('hourly');
   const mode = values.mode === 'price' ? 'price' : 'all';
@@ -235,12 +250,14 @@ export function newMonitorPage({ user, error = '', values = {}, demoHint = '' })
   return page({
     title: 'Add a URL',
     user,
+    csrf,
     width: 720,
     body: `<h1>Add a URL</h1>
       <p class="lede">Public http(s) pages only. ${esc(plan.name)} includes ${plan.maxMonitors} URLs.</p>
       <div class="card">
         ${banner(error)}
         <form method="post" action="/app/monitors">
+          ${csrfField(csrf)}
           <label for="url">Website URL</label>
           <input id="url" name="url" type="url" required placeholder="https://example.com/pricing" value="${esc(values.url || '')}" />
           <label for="label">Label <span class="muted" style="font-weight:500">(optional)</span></label>
@@ -268,7 +285,7 @@ export function newMonitorPage({ user, error = '', values = {}, demoHint = '' })
   });
 }
 
-export function monitorPage({ user, monitor, changes, snapshot, config, notice = '', error = '' }) {
+export function monitorPage({ user, monitor, changes, snapshot, config, notice = '', error = '', csrf = '' }) {
   const when = formatWhen(monitor.lastCheckedAt);
   const preview = snapshot?.text ? cap(snapshot.text, 40) : null;
   const history = changes.length ? `<div class="table-wrap"><table>
@@ -287,11 +304,13 @@ export function monitorPage({ user, monitor, changes, snapshot, config, notice =
       <p class="muted">These buttons only exist while the demo sample is enabled. They edit the local sample store, not a customer site.</p>
       <div class="row">
         <form method="post" action="/demo/variant">
+          ${csrfField(csrf)}
           <input type="hidden" name="variant" value="changed" />
           <input type="hidden" name="next" value="/app/monitors/${monitor.id}" />
           <button class="btn btn-ghost" type="submit">Simulate a price change</button>
         </form>
         <form method="post" action="/demo/variant">
+          ${csrfField(csrf)}
           <input type="hidden" name="variant" value="original" />
           <input type="hidden" name="next" value="/app/monitors/${monitor.id}" />
           <button class="btn btn-ghost" type="submit">Reset sample prices</button>
@@ -301,6 +320,7 @@ export function monitorPage({ user, monitor, changes, snapshot, config, notice =
   return page({
     title: monitor.label || 'Monitor',
     user,
+    csrf,
     body: `<p class="muted" style="margin-bottom:6px"><a href="/app">All monitors</a></p>
       <h1>${esc(monitor.label || hostOf(monitor.url))}</h1>
       <p class="lede"><a href="${esc(monitor.url)}">${esc(monitor.url)}</a></p>
@@ -314,8 +334,8 @@ export function monitorPage({ user, monitor, changes, snapshot, config, notice =
         ${monitor.selector ? `<p class="muted">Selector: <code>${esc(monitor.selector)}</code></p>` : ''}
         ${monitor.lastError ? `<p class="error">${esc(monitor.lastError)}</p>` : ''}
         <div class="row">
-          <form method="post" action="/app/monitors/${monitor.id}/check"><button class="btn btn-primary" type="submit">Check now</button></form>
-          <form method="post" action="/app/monitors/${monitor.id}/delete" onsubmit="return confirm('Remove this monitor?');"><button class="btn danger" type="submit">Remove</button></form>
+          <form method="post" action="/app/monitors/${monitor.id}/check">${csrfField(csrf)}<button class="btn btn-primary" type="submit">Check now</button></form>
+          <form method="post" action="/app/monitors/${monitor.id}/delete" onsubmit="return confirm('Remove this monitor?');">${csrfField(csrf)}<button class="btn danger" type="submit">Remove</button></form>
         </div>
       </div>
       ${demo}
@@ -326,7 +346,7 @@ export function monitorPage({ user, monitor, changes, snapshot, config, notice =
   });
 }
 
-export function changePage({ user, change, before, after }) {
+export function changePage({ user, change, before, after, csrf = '' }) {
   const previous = cap(before?.text || '', 300);
   const current = cap(after?.text || '', 300);
   const prices = (change.diff?.priceChanges || []).map((item) => `<li>${esc(describe(item))}</li>`).join('');
@@ -337,12 +357,15 @@ export function changePage({ user, change, before, after }) {
     return `<div class="eq">  ${esc(line.text)}</div>`;
   }).join('');
   const when = formatWhen(change.createdAt);
-  const mailed = change.alertedAt
-    ? `Alert email sent to ${esc(user.email)} at ${esc(formatWhen(change.alertedAt).abs)}.`
-    : 'The change is saved. The alert email has not gone out yet.';
+  const mailed = user.alertsEnabled === false
+    ? 'Alerts are off, so no email was sent. You can turn them back on in alert settings.'
+    : change.alertedAt
+      ? `Alert email sent to ${esc(user.email)} at ${esc(formatWhen(change.alertedAt).abs)}.`
+      : 'The change is saved. The alert email has not gone out yet.';
   return page({
     title: 'Change',
     user,
+    csrf,
     body: `<p class="muted" style="margin-bottom:6px"><a href="/app/monitors/${change.monitorId}">Back to monitor</a></p>
       <h1>${esc(change.summary)}</h1>
       <p class="lede">${esc(change.label || change.url)} · <span title="${esc(when.abs)}">${esc(when.rel)}</span></p>
@@ -371,4 +394,81 @@ function cap(text, maxLines) {
 
 function hostOf(url) {
   try { return new URL(url).host; } catch { return url; }
+}
+
+export function forgotPage({ csrf = '', notice = '', error = '' } = {}) {
+  return page({
+    title: 'Reset password',
+    csrf,
+    width: 520,
+    body: `<h1>Reset your password</h1>
+      <div class="card">
+        ${banner(error, notice)}
+        <form method="post" action="/app/forgot">
+          ${csrfField(csrf)}
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required />
+          <button class="btn btn-primary" type="submit">Send reset link</button>
+        </form>
+      </div>
+      <p class="muted"><a href="/app/login">Back to log in</a></p>`,
+  });
+}
+
+export function resetPage({ token = '', csrf = '', error = '' } = {}) {
+  return page({
+    title: 'Choose a password',
+    csrf,
+    width: 520,
+    body: `<h1>Choose a new password</h1>
+      <div class="card">
+        ${banner(error)}
+        <form method="post" action="/app/reset">
+          ${csrfField(csrf)}
+          <input type="hidden" name="token" value="${esc(token)}" />
+          <label for="password">New password</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required />
+          <button class="btn btn-primary" type="submit">Update password</button>
+        </form>
+      </div>`,
+  });
+}
+
+export function settingsPage({ user, config, csrf = '', notice = '', error = '' }) {
+  const plan = planFor(user.plan);
+  const billingReady = Boolean(config.polarAccessToken && (config.polarSellerProductId || config.polarResearchProductId));
+  const checkout = billingReady ? `<div class="row">
+      <form method="post" action="/app/billing/checkout">${csrfField(csrf)}<input type="hidden" name="plan" value="seller" /><button class="btn btn-primary" type="submit">Seller · $19/mo</button></form>
+      <form method="post" action="/app/billing/checkout">${csrfField(csrf)}<input type="hidden" name="plan" value="research" /><button class="btn btn-ghost" type="submit">Research · $49/mo</button></form>
+      <form method="post" action="/app/billing/portal">${csrfField(csrf)}<button class="btn btn-ghost" type="submit">Manage or cancel in Polar</button></form>
+    </div>` : `<p class="muted">Polar checkout is not configured on this server yet. Set the product ids from the existing Pricewatch Polar organization.</p>`;
+  return page({
+    title: 'Settings',
+    user,
+    csrf,
+    width: 720,
+    body: `<h1>Settings</h1>
+      ${banner(error, notice)}
+      <div class="card">
+        <h2>Plan</h2>
+        <p class="muted">${esc(plan.name)} · ${esc(plan.price)} · ${plan.maxMonitors} URLs · ${plan.frequencies.includes('hourly') ? 'hourly or daily' : 'daily'} checks</p>
+        ${checkout}
+      </div>
+      <div class="card">
+        <h2>Alerts</h2>
+        <form method="post" action="/app/settings/alerts">
+          ${csrfField(csrf)}
+          <label class="choice"><input type="checkbox" name="alerts" value="1"${user.alertsEnabled ? ' checked' : ''} /> Email me when a watched page changes</label>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Delete account</h2>
+        <p class="muted">This removes your login, monitors, and change history from this server.</p>
+        <form method="post" action="/app/account/delete" onsubmit="return confirm('Delete this account?');">
+          ${csrfField(csrf)}
+          <button class="btn danger" type="submit">Delete account</button>
+        </form>
+      </div>`,
+  });
 }

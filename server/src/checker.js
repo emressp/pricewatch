@@ -1,6 +1,7 @@
 import { extractContent } from './extract.js';
 import { buildChange, renderEmail } from './diff.js';
-import { effectiveFrequency, intervalMs } from './plans.js';
+import { effectiveFrequency, intervalMs, monitorsWithinPlan, planFor } from './plans.js';
+import { signAlertToken } from './tokens.js';
 import { assertPublicHttpUrl, assertResolvedHost, fetchPage, fetchRobotsTxt } from './net.js';
 import { robotsDecision } from './robots.js';
 
@@ -32,6 +33,11 @@ async function runCheck(ctx, monitor, now) {
     ctx.db.finishCheck(monitor.id, { status, error, nextCheckAt, checkedAt });
     return { id: monitor.id, status, error };
   };
+
+  const allowed = monitorsWithinPlan(ctx.db.listMonitors(monitor.userId), planFor(monitor.userPlan).maxMonitors);
+  if (!allowed.has(monitor.id)) {
+    return fail('paused', 'This URL is over your plan limit. Remove one or upgrade.');
+  }
 
   let url;
   try {
@@ -113,38 +119,60 @@ async function loadRobots(ctx, url) {
   return row;
 }
 
-async function sendAlert(ctx, monitor, changeId, diff) {
+function alertLinks(ctx, monitor) {
+  const base = ctx.config.appBaseUrl;
+  const token = signAlertToken({ id: monitor.userId, email: monitor.userEmail }, ctx.config.sessionSecret);
+  return {
+    changeUrl: `${base}/app/changes/${monitor.changeId || ''}`,
+    manageUrl: `${base}/app/settings`,
+    unsubscribeUrl: `${base}/app/unsubscribe?token=${encodeURIComponent(token)}`,
+  };
+}
+
+async function deliverChangeEmail(ctx, { to, monitor, diff, changeId }) {
   if (!ctx.db.claimAlert(changeId)) return;
+  if (monitor.alertsEnabled === false || monitor.alertsEnabled === 0) {
+    ctx.db.markAlerted(changeId, new Date().toISOString());
+    return;
+  }
   try {
+    const links = alertLinks(ctx, { ...monitor, changeId });
     const email = renderEmail({
       monitor,
       diff,
       changeUrl: `${ctx.config.appBaseUrl}/app/changes/${changeId}`,
+      manageUrl: links.manageUrl,
+      unsubscribeUrl: links.unsubscribeUrl,
     });
-    await ctx.mailer.send({ to: monitor.userEmail, subject: email.subject, text: email.text });
+    await ctx.mailer.send({ to, subject: email.subject, text: email.text });
     ctx.db.markAlerted(changeId, new Date().toISOString());
-    ctx.db.clearError(monitor.id);
+    if (monitor.id) ctx.db.clearError(monitor.id);
   } catch (err) {
     ctx.db.releaseAlert(changeId);
-    ctx.db.setMonitorError(monitor.id, `Change saved. Email failed: ${err.message}`);
+    if (monitor.id) ctx.db.setMonitorError(monitor.id, `Change saved. Email failed: ${err.message}`);
+    else console.error(`[checker] alert failed for change ${changeId}: ${err.message}`);
   }
+}
+
+async function sendAlert(ctx, monitor, changeId, diff) {
+  await deliverChangeEmail(ctx, { to: monitor.userEmail, monitor, diff, changeId });
 }
 
 export async function deliverPendingAlerts(ctx) {
   for (const change of ctx.db.listUnalerted(20)) {
-    if (!change.userEmail || !ctx.db.claimAlert(change.id)) continue;
-    try {
-      const email = renderEmail({
-        monitor: { url: change.url, label: change.label, userEmail: change.userEmail },
-        diff: change.diff,
-        changeUrl: `${ctx.config.appBaseUrl}/app/changes/${change.id}`,
-      });
-      await ctx.mailer.send({ to: change.userEmail, subject: email.subject, text: email.text });
-      ctx.db.markAlerted(change.id, new Date().toISOString());
-      ctx.db.clearError(change.monitorId);
-    } catch (err) {
-      ctx.db.releaseAlert(change.id);
-      console.error(`[checker] alert retry failed for change ${change.id}: ${err.message}`);
-    }
+    if (!change.userEmail) continue;
+    await deliverChangeEmail(ctx, {
+      to: change.userEmail,
+      monitor: {
+        id: change.monitorId,
+        userId: change.userId,
+        userEmail: change.userEmail,
+        url: change.url,
+        label: change.label,
+        alertsEnabled: change.alertsEnabled,
+      },
+      diff: change.diff,
+      changeId: change.id,
+    });
   }
 }

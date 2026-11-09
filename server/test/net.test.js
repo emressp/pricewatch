@@ -7,6 +7,7 @@ test('private and link-local hosts are refused, loopback only when allowed', () 
     assert.equal(isBlockedHost(host), true, host);
   }
   assert.equal(isBlockedHost('example.com'), false);
+  assert.equal(isBlockedHost('2130706433'), true);
   assert.equal(isBlockedHost('8.8.8.8'), false);
 
   const local = assertPublicHttpUrl('http://127.0.0.1/demo/page', { allowLocal: true });

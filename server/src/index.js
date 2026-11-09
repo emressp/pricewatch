@@ -21,13 +21,19 @@ const server = app.listen(ctx.config.port, () => {
 });
 
 let timer = null;
+let checkerRunning = false;
 if (ctx.config.checkerEnabled) {
   const seconds = Math.max(15, ctx.config.checkIntervalSeconds || 60);
-  console.log(`  Checker every ${seconds}s`);
-  timer = setInterval(() => {
-    checkDueMonitors(ctx).catch((err) => console.error('[checker]', err));
-  }, seconds * 1000);
-  timer.unref?.();
+  console.log(`  Checker every ${seconds}s in this process`);
+  const tick = () => {
+    if (checkerRunning) return;
+    checkerRunning = true;
+    checkDueMonitors(ctx).catch((err) => console.error('[checker]', err)).finally(() => {
+      checkerRunning = false;
+    });
+  };
+  timer = setInterval(tick, seconds * 1000);
+  setTimeout(tick, 5000).unref?.();
 }
 
 function shutdown() {
