@@ -32,7 +32,7 @@ In the same org, create an organization access token (`POLAR_ACCESS_TOKEN`) that
 
 Add a webhook endpoint:
 
-`https://<your-service>/polar/webhook`
+`https://pricewatch-2wxd.onrender.com/polar/webhook`
 
 Subscribe to `subscription.created`, `subscription.active`, `subscription.updated`, `subscription.canceled`, and `subscription.revoked`.
 
@@ -88,7 +88,7 @@ Port 587 uses STARTTLS. `MAIL_FROM` must be the same Gmail address as `SMTP_USER
 
 Render will not run the timer while the service is asleep. `.github/workflows/keepalive.yml` runs every 10 minutes.
 
-1. In the GitHub repo, set the Actions variable `APP_URL` to `https://<your-service>.onrender.com` with no trailing slash.
+1. In the GitHub repo, set the Actions variable `APP_URL` to `https://pricewatch-2wxd.onrender.com` with no trailing slash.
 2. Set the Actions secret `CRON_SECRET` to the same value as Render’s `CRON_SECRET`.
 3. The workflow calls `/health` and `GET /cron/tick` with `Authorization: Bearer <CRON_SECRET>`. If `APP_URL` is empty, the job exits without failing.
 
@@ -100,7 +100,7 @@ Render will not run the timer while the service is asleep. `.github/workflows/ke
 | --- | --- | --- |
 | `NODE_ENV` | yes | `production` |
 | `TRUST_PROXY` | yes | `1` |
-| `APP_BASE_URL` | yes | `https://<your-service>` with no trailing slash |
+| `APP_BASE_URL` | yes | `https://pricewatch-2wxd.onrender.com` |
 | `SESSION_SECRET` | yes | long random string |
 | `CRON_SECRET` | yes | long random string, also stored as a GitHub Actions secret |
 | `TURSO_DATABASE_URL` | yes | `libsql://...` from Turso |
@@ -129,10 +129,10 @@ Local only: `DATABASE_PATH` (default `server/data/pricewatch.sqlite`), `PORT`, `
 Edit the single constant in `app-url.js`:
 
 ```js
-window.PRICEWATCH_APP_ORIGIN = "https://<your-service>";
+window.PRICEWATCH_APP_ORIGIN = "https://pricewatch-2wxd.onrender.com";
 ```
 
-Commit and push. GitHub Pages will send “Start free” to `https://<your-service>/app/signup`. Leave the constant empty if the Node process is serving the marketing pages on the same host.
+That value is already set in `app-url.js`. GitHub Pages sends “Start free” to `https://pricewatch-2wxd.onrender.com/app/signup`.
 
 ## 8. Smoke test
 
