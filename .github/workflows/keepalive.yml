@@ -1,0 +1,27 @@
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the free service and run due checks
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "APP_URL is not set; skipping."
+            exit 0
+          fi
+          base="${APP_URL%/}"
+          curl --fail --silent --show-error "$base/health"
+          echo
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$base/cron/tick"
+          echo

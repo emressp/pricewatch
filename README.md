@@ -44,7 +44,7 @@ Node 22  (Express, no native addons)
   └─ mail                 SMTP when configured, otherwise console + outbox files
 ```
 
-Stack choice: one Node process and a SQLite file. No Redis, no separate worker service, and no compiled database driver (`node:sqlite`, which ships with Node 22). That is enough for a small watchlist and is cheap to run on Fly.io, Render, Railway, or a $5 VPS with a persistent disk.
+The free deploy is a Render free web service, Turso for the database, and Gmail for mail. Locally, with `TURSO_DATABASE_URL` unset, the same code uses a SQLite file. See [DEPLOY.md](DEPLOY.md).
 
 ## Running locally
 
