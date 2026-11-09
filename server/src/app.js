@@ -2,6 +2,8 @@ import express from 'express';
 import { applyBillingEvent } from './billing.js';
 import { webhooks } from '@polar-sh/sdk/2026-10';
 import { csrfMatches } from './auth.js';
+import { checkDueMonitors } from './checker.js';
+import { tokensEqual } from './tokens.js';
 import { CHANGED_DEMO_HTML, DEFAULT_DEMO_HTML } from './demo-page.js';
 import { createRouter, safeNext } from './routes.js';
 import { page } from './templates.js';
@@ -29,14 +31,23 @@ export function createApp(ctx) {
     return next();
   });
 
-  app.get('/health', (_req, res) => {
+  app.get('/health', wrapWebhook(async (_req, res) => {
     try {
-      ctx.db.ping();
+      await ctx.db.ping();
       res.json({ ok: true });
     } catch {
       res.status(503).json({ ok: false });
     }
-  });
+  }));
+
+  app.get('/cron/tick', wrapWebhook(async (req, res) => {
+    const provided = String(req.get('x-cron-secret') || String(req.get('authorization') || '').replace(/^Bearer\s+/i, '') || req.query.secret || '');
+    if (!ctx.config.cronSecret || !tokensEqual(provided, ctx.config.cronSecret)) {
+      return res.status(401).json({ ok: false });
+    }
+    const results = await checkDueMonitors(ctx);
+    res.json({ ok: true, checked: results.length });
+  }));
 
   app.post('/polar/webhook', express.raw({ type: 'application/json', limit: '1mb' }), wrapWebhook(async (req, res) => {
     let event;
@@ -47,7 +58,7 @@ export function createApp(ctx) {
       if (err instanceof webhooks.PolarWebhookUnknownTypeError) return res.status(202).json({ received: true });
       return res.status(err.status || status).json({ error: 'Invalid webhook' });
     }
-    const result = applyBillingEvent(ctx.db, event, ctx.config, { deliveryId: req.get('webhook-id') });
+    const result = await applyBillingEvent(ctx.db, event, ctx.config, { deliveryId: req.get('webhook-id') });
     res.status(result.ok === false ? result.status || 400 : 202).json({ received: true, plan: result.plan || null });
   }));
 

@@ -36,7 +36,7 @@ test('Polar subscription events set and clear the Change Monitor plan', () => {
 });
 
 test('applying a signed Polar webhook updates the user and ignores repeats', async () => {
-  const ctx = buildContext({
+  const ctx = await buildContext({
     NODE_ENV: 'test',
     DATABASE_PATH: ':memory:',
     SESSION_SECRET: 'test-secret',
@@ -46,7 +46,7 @@ test('applying a signed Polar webhook updates the user and ignores repeats', asy
     LOG_MAIL: '0',
     MAIL_OUTBOX: '0',
   });
-  const user = ctx.db.createUser({
+  const user = await ctx.db.createUser({
     email: 'ada@example.com',
     passwordHash: 'x',
     createdAt: new Date().toISOString(),
@@ -67,8 +67,8 @@ test('applying a signed Polar webhook updates the user and ignores repeats', asy
   });
   const ok = await post(headers);
   assert.equal(ok.status, 202);
-  assert.equal(ctx.db.findUserById(user.id).plan, 'seller');
-  assert.equal(ctx.db.findUserById(user.id).billingCustomerId, 'cus_1');
+  assert.equal((await ctx.db.findUserById(user.id)).plan, 'seller');
+  assert.equal((await ctx.db.findUserById(user.id)).billingCustomerId, 'cus_1');
   const again = await post(headers);
   assert.equal(again.status, 202);
   const bad = await post({ ...headers, 'webhook-signature': 'v1,bm90LWEtcmVhbC1zaWduYXR1cmU=' });
@@ -84,8 +84,8 @@ test('applying a signed Polar webhook updates the user and ignores repeats', asy
     body: cancelBody,
   });
   assert.equal(cleared.status, 202);
-  assert.equal(ctx.db.findUserById(user.id).plan, 'free');
-  const applied = applyBillingEvent(ctx.db, canceled, ctx.config, { deliveryId: 'msg_2' });
+  assert.equal((await ctx.db.findUserById(user.id)).plan, 'free');
+  const applied = await applyBillingEvent(ctx.db, canceled, ctx.config, { deliveryId: 'msg_2' });
   assert.equal(applied.duplicate, true);
   await new Promise((resolve) => server.close(resolve));
   ctx.db.close();

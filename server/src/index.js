@@ -1,10 +1,10 @@
 import { createApp } from './app.js';
 import { buildContext } from './bootstrap.js';
-import { checkDueMonitors } from './checker.js';
+import { catchUpDueMonitors, checkDueMonitors } from './checker.js';
 import { loadEnvFile, serverRoot } from './config.js';
 
 loadEnvFile(serverRoot());
-const ctx = buildContext();
+const ctx = await buildContext();
 
 if (ctx.config.nodeEnv === 'production' && !ctx.config.sessionSecret) {
   console.error('SESSION_SECRET is required in production.');
@@ -33,7 +33,9 @@ if (ctx.config.checkerEnabled) {
     });
   };
   timer = setInterval(tick, seconds * 1000);
-  setTimeout(tick, 5000).unref?.();
+  setTimeout(() => {
+    catchUpDueMonitors(ctx).catch((err) => console.error('[checker]', err));
+  }, 2000).unref?.();
 }
 
 function shutdown() {

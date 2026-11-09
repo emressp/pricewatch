@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const dir = await mkdtemp(path.join(tmpdir(), 'pw-demo-'));
 const outbox = path.join(dir, 'outbox');
-const ctx = buildContext({
+const ctx = await buildContext({
   NODE_ENV: 'development',
   DATABASE_PATH: path.join(dir, 'pricewatch.sqlite'),
   OUTBOX_DIR: outbox,

@@ -51,34 +51,34 @@ export function interpretBillingEvent(event, config) {
   return { ignore: true };
 }
 
-function findBillingUser(db, decision) {
+async function findBillingUser(db, decision) {
   const userId = Number(decision.userId);
   if (userId) {
-    const byId = db.findUserById(userId);
+    const byId = await db.findUserById(userId);
     if (byId) return byId;
   }
   if (decision.customerId) {
-    const byCustomer = db.findUserByBillingCustomer(decision.customerId);
+    const byCustomer = await db.findUserByBillingCustomer(decision.customerId);
     if (byCustomer) return byCustomer;
   }
   if (decision.email) return db.findUserByEmail(decision.email);
   return null;
 }
 
-export function applyBillingEvent(db, event, config, { deliveryId } = {}) {
+export async function applyBillingEvent(db, event, config, { deliveryId } = {}) {
   const id = String(deliveryId || event?.id || '');
   if (!id) return { ok: false, status: 400, error: 'Missing event id' };
-  if (!db.claimBillingEvent(id, new Date().toISOString())) return { ok: true, duplicate: true };
+  if (!await db.claimBillingEvent(id, new Date().toISOString())) return { ok: true, duplicate: true };
   try {
     const decision = interpretBillingEvent(event, config);
     if (decision.ignore) return { ok: true, ignored: true, reason: decision.reason || '' };
-    const user = findBillingUser(db, decision);
+    const user = await findBillingUser(db, decision);
     if (!user) return { ok: true, missingUser: true };
-    db.setPlan(user.id, decision.plan);
-    if (decision.customerId) db.setBillingCustomer(user.id, decision.customerId);
+    await db.setPlan(user.id, decision.plan);
+    if (decision.customerId) await db.setBillingCustomer(user.id, decision.customerId);
     return { ok: true, userId: user.id, plan: decision.plan };
   } catch (err) {
-    db.forgetBillingEvent(id);
+    await db.forgetBillingEvent(id);
     throw err;
   }
 }

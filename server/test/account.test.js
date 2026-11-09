@@ -9,7 +9,7 @@ import { createRateLimiter } from '../src/rate-limit.js';
 
 test('auth posts without a csrf token are rejected, and password reset works', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'pw-account-'));
-  const ctx = buildContext({
+  const ctx = await buildContext({
     NODE_ENV: 'test',
     DATABASE_PATH: ':memory:',
     OUTBOX_DIR: path.join(dir, 'outbox'),

@@ -10,7 +10,7 @@ import { checkDueMonitors } from '../src/checker.js';
 async function start() {
   const dir = await mkdtemp(path.join(tmpdir(), 'pw-'));
   const outbox = path.join(dir, 'outbox');
-  const ctx = buildContext({
+  const ctx = await buildContext({
     NODE_ENV: 'test',
     DATABASE_PATH: ':memory:',
     OUTBOX_DIR: outbox,

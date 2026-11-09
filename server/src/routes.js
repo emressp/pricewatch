@@ -39,12 +39,12 @@ export function createRouter(ctx) {
     req.sessionToken = '';
     const token = readCookie(req.headers.cookie, SESSION_COOKIE);
     if (token) {
-      const session = db.findSession(token);
+      const session = await db.findSession(token);
       const now = new Date().toISOString();
       if (!session || session.expiresAt <= now) {
-        if (session) db.deleteSession(token);
+        if (session) await db.deleteSession(token);
       } else {
-        req.user = db.findUserById(session.userId);
+        req.user = await db.findUserById(session.userId);
         req.sessionToken = token;
       }
     }
@@ -65,15 +65,15 @@ export function createRouter(ctx) {
     return config.nodeEnv === 'production' || Boolean(req.secure);
   }
 
-  function startSession(res, req, user) {
+  async function startSession(res, req, user) {
     const token = newSessionToken();
     const expires = new Date(Date.now() + SESSION_MS).toISOString();
-    db.createSession({ token, userId: user.id, expiresAt: expires });
+    await db.createSession({ token, userId: user.id, expiresAt: expires });
     res.append('Set-Cookie', sessionCookie(token, { secure: cookieSecure(req) }));
   }
 
-  function limited(limiter, key, res) {
-    if (limiter.allow(key)) return false;
+  async function limited(key, limit, windowMs, res) {
+    if (await db.allowRate(key, limit, windowMs)) return false;
     res.status(429).type('html').send(page({
       title: 'Slow down',
       user: null,
@@ -83,18 +83,18 @@ export function createRouter(ctx) {
     return true;
   }
 
-  router.get('/', (req, res) => {
+  router.get('/', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/signup');
     res.type('html').send(dashboardPage({
       user: req.user,
-      monitors: db.listMonitors(req.user.id),
+      monitors: await db.listMonitors(req.user.id),
       config,
       notice: String(req.query.notice || ''),
       error: String(req.query.error || ''),
       demoUrl: absoluteDemo(req),
       csrf: req.csrfToken,
     }));
-  });
+  }));
 
   router.get('/signup', (req, res) => {
     if (req.user) return res.redirect(302, '/app');
@@ -102,7 +102,7 @@ export function createRouter(ctx) {
   });
 
   router.post('/signup', wrap(async (req, res) => {
-    if (limited(ctx.authLimiter, `signup:${req.ip}`, res)) return;
+    if (await limited(`signup:${req.ip}`, config.authRateLimit, config.authRateWindowMs, res)) return;
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || '');
     if (!email || password.length < 8 || password.length > 200) {
@@ -112,7 +112,7 @@ export function createRouter(ctx) {
         csrf: req.csrfToken,
       }));
     }
-    const user = db.createUser({
+    const user = await db.createUser({
       email,
       passwordHash: await hashPassword(password),
       createdAt: new Date().toISOString(),
@@ -125,7 +125,7 @@ export function createRouter(ctx) {
       }));
     }
     await sendVerifyEmail(ctx, user);
-    startSession(res, req, user);
+    await startSession(res, req, user);
     res.redirect(303, '/app?notice=Check+your+email+to+confirm+this+address');
   }));
 
@@ -135,10 +135,10 @@ export function createRouter(ctx) {
   });
 
   router.post('/login', wrap(async (req, res) => {
-    if (limited(ctx.authLimiter, `login:${req.ip}`, res)) return;
+    if (await limited(`login:${req.ip}`, config.authRateLimit, config.authRateWindowMs, res)) return;
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || '');
-    const user = email ? db.findUserByEmail(email) : null;
+    const user = email ? await db.findUserByEmail(email) : null;
     const ok = user ? await verifyPassword(password, user.passwordHash) : false;
     if (!ok) {
       return res.status(400).type('html').send(loginPage({
@@ -147,24 +147,24 @@ export function createRouter(ctx) {
         csrf: req.csrfToken,
       }));
     }
-    startSession(res, req, user);
+    await startSession(res, req, user);
     res.redirect(303, '/app');
   }));
 
-  router.post('/logout', (req, res) => {
-    if (req.sessionToken) db.deleteSession(req.sessionToken);
+  router.post('/logout', wrap(async (req, res) => {
+    if (req.sessionToken) await db.deleteSession(req.sessionToken);
     res.append('Set-Cookie', clearSessionCookie());
     res.redirect(303, '/app/login');
-  });
+  }));
 
   router.get('/forgot', (req, res) => {
     res.type('html').send(forgotPage({ csrf: req.csrfToken, notice: String(req.query.notice || '') }));
   });
 
   router.post('/forgot', wrap(async (req, res) => {
-    if (limited(ctx.authLimiter, `forgot:${req.ip}`, res)) return;
+    if (await limited(`forgot:${req.ip}`, config.authRateLimit, config.authRateWindowMs, res)) return;
     const email = normalizeEmail(req.body?.email);
-    const user = email ? db.findUserByEmail(email) : null;
+    const user = email ? await db.findUserByEmail(email) : null;
     if (user) await sendResetEmail(ctx, user);
     res.redirect(303, '/app/forgot?notice=If+that+account+exists%2C+we+sent+a+reset+link');
   }));
@@ -174,10 +174,10 @@ export function createRouter(ctx) {
   });
 
   router.post('/reset', wrap(async (req, res) => {
-    if (limited(ctx.authLimiter, `reset:${req.ip}`, res)) return;
+    if (await limited(`reset:${req.ip}`, config.authRateLimit, config.authRateWindowMs, res)) return;
     const token = String(req.body?.token || '');
     const password = String(req.body?.password || '');
-    const row = token ? db.findEmailToken(hashToken(token), 'reset') : null;
+    const row = token ? await db.findEmailToken(hashToken(token), 'reset') : null;
     if (!row || row.expiresAt < new Date().toISOString() || password.length < 8 || password.length > 200) {
       return res.status(400).type('html').send(resetPage({
         token,
@@ -185,15 +185,15 @@ export function createRouter(ctx) {
         error: 'That reset link is invalid or expired. Request a new one.',
       }));
     }
-    db.sqlite.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(password), row.userId);
-    db.deleteEmailTokens(row.userId, 'reset');
-    db.deleteUserSessions(row.userId);
+    await db.setPassword(row.userId, await hashPassword(password));
+    await db.deleteEmailTokens(row.userId, 'reset');
+    await db.deleteUserSessions(row.userId);
     res.redirect(303, '/app/login?notice=Password+updated.+Log+in+with+the+new+one');
   }));
 
-  router.get('/verify', (req, res) => {
+  router.get('/verify', wrap(async (req, res) => {
     const token = String(req.query.token || '');
-    const row = token ? db.findEmailToken(hashToken(token), 'verify') : null;
+    const row = token ? await db.findEmailToken(hashToken(token), 'verify') : null;
     if (!row || row.expiresAt < new Date().toISOString()) {
       return res.status(400).type('html').send(page({
         title: 'Link expired',
@@ -203,45 +203,45 @@ export function createRouter(ctx) {
         body: '<div class="card"><h1>That link has expired</h1><p><a href="/app">Back to your account</a> and send a new confirmation email.</p></div>',
       }));
     }
-    db.markEmailVerified(row.userId, new Date().toISOString());
-    db.deleteEmailTokens(row.userId, 'verify');
+    await db.markEmailVerified(row.userId, new Date().toISOString());
+    await db.deleteEmailTokens(row.userId, 'verify');
     res.redirect(303, '/app?notice=Email+confirmed');
-  });
+  }));
 
   router.post('/verify/resend', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    if (limited(ctx.authLimiter, `verify:${req.user.id}`, res)) return;
+    if (await limited(`verify:${req.user.id}`, config.authRateLimit, config.authRateWindowMs, res)) return;
     if (!req.user.emailVerifiedAt) await sendVerifyEmail(ctx, req.user);
     res.redirect(303, '/app?notice=Confirmation+email+sent');
   }));
 
-  router.get('/settings', (req, res) => {
+  router.get('/settings', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
     res.type('html').send(settingsPage({
-      user: db.findUserById(req.user.id),
+      user: await db.findUserById(req.user.id),
       config,
       csrf: req.csrfToken,
       notice: String(req.query.notice || ''),
       error: String(req.query.error || ''),
     }));
-  });
+  }));
 
-  router.post('/settings/alerts', (req, res) => {
+  router.post('/settings/alerts', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    db.setAlertsEnabled(req.user.id, req.body?.alerts === '1');
+    await db.setAlertsEnabled(req.user.id, req.body?.alerts === '1');
     res.redirect(303, '/app/settings?notice=Alert+settings+saved');
-  });
+  }));
 
-  router.post('/account/delete', (req, res) => {
+  router.post('/account/delete', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    db.deleteUser(req.user.id);
+    await db.deleteUser(req.user.id);
     res.append('Set-Cookie', clearSessionCookie());
     res.redirect(303, '/app/signup?notice=Account+deleted');
-  });
+  }));
 
-  router.get('/unsubscribe', (req, res) => {
+  router.get('/unsubscribe', wrap(async (req, res) => {
     const parsed = readAlertToken(req.query.token, config.sessionSecret);
-    const user = parsed ? db.findUserById(parsed.id) : null;
+    const user = parsed ? await db.findUserById(parsed.id) : null;
     if (!user || user.email !== parsed.email) {
       return res.status(400).type('html').send(page({
         title: 'Unsubscribe',
@@ -249,7 +249,7 @@ export function createRouter(ctx) {
         body: '<div class="card"><h1>That unsubscribe link is not valid</h1></div>',
       }));
     }
-    db.setAlertsEnabled(user.id, false);
+    await db.setAlertsEnabled(user.id, false);
     res.type('html').send(page({
       title: 'Unsubscribed',
       user: req.user,
@@ -257,7 +257,7 @@ export function createRouter(ctx) {
       width: 640,
       body: `<div class="card"><h1>Alerts are off</h1><p>We will not email ${escapeHtml(user.email)} about page changes. The history stays in your account. <a href="/app/settings">Turn alerts back on</a>.</p></div>`,
     }));
-  });
+  }));
 
   router.post('/billing/checkout', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
@@ -296,9 +296,9 @@ export function createRouter(ctx) {
     }));
   });
 
-  router.post('/monitors', (req, res) => {
+  router.post('/monitors', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    if (!ctx.urlLimiter.allow(`url:${req.user.id}`)) {
+    if (!await db.allowRate(`url:${req.user.id}`, config.urlRateLimit, config.urlRateWindowMs)) {
       return res.status(429).type('html').send(newMonitorPage({
         user: req.user,
         error: 'Too many URLs added in a short time. Wait and try again.',
@@ -328,14 +328,14 @@ export function createRouter(ctx) {
     if (!plan.frequencies.includes(values.frequency)) {
       return fail('Hourly checks are on the Seller and Research plans. Choose daily, or upgrade.');
     }
-    if (db.countMonitors(req.user.id) >= plan.maxMonitors) {
+    if (await db.countMonitors(req.user.id) >= plan.maxMonitors) {
       return fail(`The ${plan.name} plan includes ${plan.maxMonitors} URLs. Remove one or upgrade to add more.`);
     }
-    if (db.findDuplicate(req.user.id, canonical, values.selector, values.mode)) {
+    if (await db.findDuplicate(req.user.id, canonical, values.selector, values.mode)) {
       return fail('You are already watching that URL with the same settings.');
     }
     const now = new Date().toISOString();
-    const monitor = db.createMonitor({
+    const monitor = await db.createMonitor({
       userId: req.user.id,
       url: canonical,
       label: values.label || labelFromUrl(canonical),
@@ -346,27 +346,27 @@ export function createRouter(ctx) {
       nextCheckAt: now,
     });
     res.redirect(303, `/app/monitors/${monitor.id}`);
-  });
+  }));
 
-  router.get('/monitors/:id', (req, res) => {
+  router.get('/monitors/:id', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    const monitor = db.findMonitor(Number(req.params.id), req.user.id);
+    const monitor = await db.findMonitor(Number(req.params.id), req.user.id);
     if (!monitor) return notFound(res, req);
     res.type('html').send(monitorPage({
       user: req.user,
       monitor,
-      changes: db.listChanges(monitor.id),
-      snapshot: db.latestSnapshot(monitor.id),
+      changes: await db.listChanges(monitor.id),
+      snapshot: await db.latestSnapshot(monitor.id),
       config,
       notice: String(req.query.notice || ''),
       error: String(req.query.error || ''),
       csrf: req.csrfToken,
     }));
-  });
+  }));
 
   router.post('/monitors/:id/check', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    const monitor = db.findMonitor(Number(req.params.id), req.user.id);
+    const monitor = await db.findMonitor(Number(req.params.id), req.user.id);
     if (!monitor) return notFound(res, req);
     const result = await checkMonitor(ctx, monitor);
     if (result.changeId) return res.redirect(303, `/app/changes/${result.changeId}`);
@@ -380,33 +380,33 @@ export function createRouter(ctx) {
     res.redirect(303, `/app/monitors/${monitor.id}${suffix}`);
   }));
 
-  router.post('/monitors/:id/delete', (req, res) => {
+  router.post('/monitors/:id/delete', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    db.deleteMonitor(Number(req.params.id), req.user.id);
+    await db.deleteMonitor(Number(req.params.id), req.user.id);
     res.redirect(303, '/app?notice=Monitor+removed');
-  });
+  }));
 
-  router.get('/changes/:id', (req, res) => {
+  router.get('/changes/:id', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
-    const change = db.findChange(Number(req.params.id), req.user.id);
+    const change = await db.findChange(Number(req.params.id), req.user.id);
     if (!change) return notFound(res, req);
     res.type('html').send(changePage({
       user: req.user,
       change,
-      before: change.previousSnapshotId ? db.getSnapshot(change.previousSnapshotId) : null,
-      after: db.getSnapshot(change.snapshotId),
+      before: change.previousSnapshotId ? await db.getSnapshot(change.previousSnapshotId) : null,
+      after: await db.getSnapshot(change.snapshotId),
       csrf: req.csrfToken,
     }));
-  });
+  }));
 
-  router.post('/plan', (req, res) => {
+  router.post('/plan', wrap(async (req, res) => {
     if (!req.user) return res.redirect(302, '/app/login');
     if (!config.allowPlanSwitch) return res.redirect(303, '/app/settings?error=Plan+changes+are+turned+off');
     const plan = ['free', 'seller', 'research'].includes(req.body?.plan) ? req.body.plan : '';
     if (!plan) return res.redirect(303, '/app/settings?error=Unknown+plan');
-    db.setPlan(req.user.id, plan);
+    await db.setPlan(req.user.id, plan);
     res.redirect(303, '/app?notice=Plan+updated');
-  });
+  }));
 
   router.use((req, res) => notFound(res, req));
   return router;
@@ -415,7 +415,7 @@ export function createRouter(ctx) {
 async function sendVerifyEmail(ctx, user) {
   const token = newToken();
   const now = new Date();
-  ctx.db.createEmailToken({
+  await ctx.db.createEmailToken({
     userId: user.id,
     purpose: 'verify',
     tokenHash: hashToken(token),
@@ -433,7 +433,7 @@ async function sendVerifyEmail(ctx, user) {
 async function sendResetEmail(ctx, user) {
   const token = newToken();
   const now = new Date();
-  ctx.db.createEmailToken({
+  await ctx.db.createEmailToken({
     userId: user.id,
     purpose: 'reset',
     tokenHash: hashToken(token),

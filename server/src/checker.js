@@ -5,9 +5,19 @@ import { signAlertToken } from './tokens.js';
 import { assertPublicHttpUrl, assertResolvedHost, fetchPage, fetchRobotsTxt } from './net.js';
 import { robotsDecision } from './robots.js';
 
+export async function catchUpDueMonitors(ctx, { maxPasses = 8 } = {}) {
+  const results = [];
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const batch = await checkDueMonitors(ctx);
+    results.push(...batch);
+    if (!batch.length) break;
+  }
+  return results;
+}
+
 export async function checkDueMonitors(ctx, now = new Date()) {
   await deliverPendingAlerts(ctx);
-  const due = ctx.db.listDue(now.toISOString(), 25);
+  const due = await ctx.db.listDue(now.toISOString(), 25);
   const results = [];
   for (const monitor of due) results.push(await checkMonitor(ctx, monitor, { now }));
   return results;
@@ -29,14 +39,14 @@ async function runCheck(ctx, monitor, now) {
   const checkedAt = now.toISOString();
   const frequency = effectiveFrequency(monitor.userPlan || 'free', monitor.frequency);
   const nextCheckAt = new Date(now.getTime() + intervalMs(frequency)).toISOString();
-  const fail = (status, error) => {
-    ctx.db.finishCheck(monitor.id, { status, error, nextCheckAt, checkedAt });
+  const fail = async (status, error) => {
+    await ctx.db.finishCheck(monitor.id, { status, error, nextCheckAt, checkedAt });
     return { id: monitor.id, status, error };
   };
 
-  const allowed = monitorsWithinPlan(ctx.db.listMonitors(monitor.userId), planFor(monitor.userPlan).maxMonitors);
+  const allowed = monitorsWithinPlan(await ctx.db.listMonitors(monitor.userId), planFor(monitor.userPlan).maxMonitors);
   if (!allowed.has(monitor.id)) {
-    return fail('paused', 'This URL is over your plan limit. Remove one or upgrade.');
+    return await fail('paused', 'This URL is over your plan limit. Remove one or upgrade.');
   }
 
   let url;
@@ -44,18 +54,18 @@ async function runCheck(ctx, monitor, now) {
     url = assertPublicHttpUrl(monitor.url, { allowLocal: ctx.config.allowLocalFetch });
     await assertResolvedHost(url, { allowLocal: ctx.config.allowLocalFetch, lookup: ctx.lookup });
   } catch (err) {
-    return fail('error', err.message);
+    return await fail('error', err.message);
   }
 
   let robots;
   try {
     robots = await loadRobots(ctx, url);
   } catch (err) {
-    return fail('error', err.message);
+    return await fail('error', err.message);
   }
   const decision = robotsDecision(robots.body, `${url.pathname}${url.search}`, ctx.config.userAgent);
   if (!decision.allowed) {
-    return fail('blocked', `Blocked by robots.txt for ${url.pathname || '/'}.`);
+    return await fail('blocked', `Blocked by robots.txt for ${url.pathname || '/'}.`);
   }
 
   await ctx.limiter.wait(url.host, (decision.crawlDelaySec || 0) * 1000);
@@ -71,17 +81,17 @@ async function runCheck(ctx, monitor, now) {
       lookup: ctx.lookup,
     });
   } catch (err) {
-    return fail('error', err.message);
+    return await fail('error', err.message);
   }
 
   const extracted = extractContent(page.html, { selector: monitor.selector, mode: monitor.mode });
-  if (!extracted.ok) return fail('error', extracted.error);
+  if (!extracted.ok) return await fail('error', extracted.error);
 
-  const previous = ctx.db.latestSnapshot(monitor.id);
+  const previous = await ctx.db.latestSnapshot(monitor.id);
   const diff = previous && previous.contentHash !== extracted.hash ? buildChange(previous, extracted) : null;
   const status = !previous ? 'baseline' : diff ? 'changed' : 'unchanged';
   const note = extracted.mode === 'price' && extracted.prices.length === 0 ? 'No prices found on the page.' : '';
-  const recorded = ctx.db.recordCheck({
+  const recorded = await ctx.db.recordCheck({
     monitorId: monitor.id,
     snapshot: {
       checkedAt,
@@ -99,7 +109,7 @@ async function runCheck(ctx, monitor, now) {
 }
 
 async function loadRobots(ctx, url) {
-  const cached = ctx.db.getRobots(url.origin);
+  const cached = await ctx.db.getRobots(url.origin);
   if (cached) {
     const age = Date.now() - new Date(cached.fetchedAt).getTime();
     const ttl = cached.status >= 500 ? 10 * 60 * 1000 : 12 * 60 * 60 * 1000;
@@ -115,7 +125,7 @@ async function loadRobots(ctx, url) {
   if (result.status === 404) body = '';
   else if (result.status >= 400) body = 'User-agent: *\nDisallow: /\n';
   const row = { origin: url.origin, body, status: result.status, fetchedAt: new Date().toISOString() };
-  ctx.db.putRobots(row);
+  await ctx.db.putRobots(row);
   return row;
 }
 
@@ -130,9 +140,9 @@ function alertLinks(ctx, monitor) {
 }
 
 async function deliverChangeEmail(ctx, { to, monitor, diff, changeId }) {
-  if (!ctx.db.claimAlert(changeId)) return;
+  if (!await ctx.db.claimAlert(changeId)) return;
   if (monitor.alertsEnabled === false || monitor.alertsEnabled === 0) {
-    ctx.db.markAlerted(changeId, new Date().toISOString());
+    await ctx.db.markAlerted(changeId, new Date().toISOString());
     return;
   }
   try {
@@ -144,12 +154,17 @@ async function deliverChangeEmail(ctx, { to, monitor, diff, changeId }) {
       manageUrl: links.manageUrl,
       unsubscribeUrl: links.unsubscribeUrl,
     });
-    await ctx.mailer.send({ to, subject: email.subject, text: email.text });
-    ctx.db.markAlerted(changeId, new Date().toISOString());
-    if (monitor.id) ctx.db.clearError(monitor.id);
+    const sent = await ctx.mailer.send({ to, subject: email.subject, text: email.text });
+    if (sent?.skipped) {
+      await ctx.db.releaseAlert(changeId);
+      console.log(`[pricewatch mail] daily limit reached; kept alert ${changeId} for later`);
+      return;
+    }
+    await ctx.db.markAlerted(changeId, new Date().toISOString());
+    if (monitor.id) await ctx.db.clearError(monitor.id);
   } catch (err) {
-    ctx.db.releaseAlert(changeId);
-    if (monitor.id) ctx.db.setMonitorError(monitor.id, `Change saved. Email failed: ${err.message}`);
+    await ctx.db.releaseAlert(changeId);
+    if (monitor.id) await ctx.db.setMonitorError(monitor.id, `Change saved. Email failed: ${err.message}`);
     else console.error(`[checker] alert failed for change ${changeId}: ${err.message}`);
   }
 }
@@ -159,7 +174,7 @@ async function sendAlert(ctx, monitor, changeId, diff) {
 }
 
 export async function deliverPendingAlerts(ctx) {
-  for (const change of ctx.db.listUnalerted(20)) {
+  for (const change of await ctx.db.listUnalerted(20)) {
     if (!change.userEmail) continue;
     await deliverChangeEmail(ctx, {
       to: change.userEmail,

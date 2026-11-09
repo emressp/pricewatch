@@ -2,6 +2,12 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+const TEXT_CAP = 12_000;
+const DIFF_CAP = 8_000;
+const ROBOTS_CAP = 16_000;
+const SNAPSHOTS_KEEP = 5;
+const CHANGES_KEEP = 20;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +76,15 @@ CREATE TABLE IF NOT EXISTS robots_cache (
   fetched_at TEXT NOT NULL,
   status INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  window_start INTEGER NOT NULL,
+  count INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS mail_daily (
+  day TEXT PRIMARY KEY,
+  count INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_monitors_due ON monitors(next_check_at);
 CREATE INDEX IF NOT EXISTS idx_monitors_user ON monitors(user_id);
 CREATE INDEX IF NOT EXISTS idx_snapshots_monitor ON snapshots(monitor_id, id DESC);
@@ -99,10 +114,34 @@ function parseJson(value, fallback) {
   }
 }
 
+function trimText(value, max) {
+  const text = String(value || '');
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n… truncated`;
+}
+
+function trimDiff(diff) {
+  if (!diff) return '{}';
+  const lines = Array.isArray(diff.lines) ? diff.lines.slice(0, 40) : [];
+  const compact = {
+    summary: trimText(diff.summary, 500),
+    priceChanges: Array.isArray(diff.priceChanges) ? diff.priceChanges.slice(0, 20) : [],
+    lines,
+    added: diff.added || 0,
+    removed: diff.removed || 0,
+  };
+  let json = JSON.stringify(compact);
+  if (json.length > DIFF_CAP) {
+    compact.lines = compact.lines.slice(0, 8);
+    json = JSON.stringify(compact);
+  }
+  return json.slice(0, DIFF_CAP);
+}
+
 function userFromRow(row) {
   if (!row) return null;
   return {
-    id: row.id,
+    id: Number(row.id),
     email: row.email,
     passwordHash: row.password_hash,
     plan: row.plan,
@@ -116,8 +155,8 @@ function userFromRow(row) {
 function monitorFromRow(row) {
   if (!row) return null;
   return {
-    id: row.id,
-    userId: row.user_id,
+    id: Number(row.id),
+    userId: Number(row.user_id),
     url: row.url,
     label: row.label,
     selector: row.selector,
@@ -138,23 +177,23 @@ function monitorFromRow(row) {
 function snapshotFromRow(row) {
   if (!row) return null;
   return {
-    id: row.id,
-    monitorId: row.monitor_id,
+    id: Number(row.id),
+    monitorId: Number(row.monitor_id),
     checkedAt: row.checked_at,
     contentHash: row.content_hash,
     text: row.text,
     prices: parseJson(row.prices_json, []),
-    httpStatus: row.http_status,
+    httpStatus: Number(row.http_status || 0),
   };
 }
 
 function changeFromRow(row) {
   if (!row) return null;
   return {
-    id: row.id,
-    monitorId: row.monitor_id,
-    snapshotId: row.snapshot_id,
-    previousSnapshotId: row.previous_snapshot_id,
+    id: Number(row.id),
+    monitorId: Number(row.monitor_id),
+    snapshotId: Number(row.snapshot_id),
+    previousSnapshotId: row.previous_snapshot_id == null ? null : Number(row.previous_snapshot_id),
     summary: row.summary,
     diff: parseJson(row.diff_json, { summary: row.summary, priceChanges: [], lines: [] }),
     createdAt: row.created_at,
@@ -162,227 +201,357 @@ function changeFromRow(row) {
     url: row.url,
     label: row.label,
     userEmail: row.user_email,
-    userId: row.owner_id || row.user_id,
+    userId: Number(row.owner_id || row.user_id),
     alertsEnabled: row.alerts_enabled == null ? true : Number(row.alerts_enabled) !== 0,
   };
 }
 
-export function openDatabase(file) {
-  if (file !== ':memory:') mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
-  const sqlite = new DatabaseSync(file);
-  sqlite.exec('PRAGMA foreign_keys = ON;');
-  sqlite.exec('PRAGMA busy_timeout = 3000;');
-  if (file !== ':memory:') sqlite.exec('PRAGMA journal_mode = WAL;');
-  sqlite.exec(SCHEMA);
-  for (const statement of USER_COLUMN_MIGRATIONS) {
-    try { sqlite.exec(statement); } catch (err) {
-      if (!/duplicate column/i.test(String(err.message))) throw err;
-    }
-  }
-  return createRepo(sqlite);
+function splitSql(sql) {
+  return String(sql).split(/;\s*(?:\n|$)/).map((part) => part.trim()).filter(Boolean);
 }
 
-function createRepo(sqlite) {
-  function transaction(fn) {
-    sqlite.exec('BEGIN');
+function sqliteDriver(file) {
+  if (file !== ':memory:') mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA foreign_keys = ON;');
+  db.exec('PRAGMA busy_timeout = 3000;');
+  if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
+  return {
+    async exec(sql) {
+      for (const statement of splitSql(sql)) db.exec(statement);
+    },
+    async get(sql, args = []) {
+      return db.prepare(sql).get(...args) ?? null;
+    },
+    async all(sql, args = []) {
+      return db.prepare(sql).all(...args);
+    },
+    async run(sql, args = []) {
+      const info = db.prepare(sql).run(...args);
+      return { lastInsertRowid: Number(info.lastInsertRowid), changes: Number(info.changes) };
+    },
+    async batch(statements) {
+      db.exec('BEGIN');
+      try {
+        const results = statements.map((statement) => {
+          const info = db.prepare(statement.sql).run(...(statement.args || []));
+          return { lastInsertRowid: Number(info.lastInsertRowid), changes: Number(info.changes) };
+        });
+        db.exec('COMMIT');
+        return results;
+      } catch (err) {
+        try { db.exec('ROLLBACK'); } catch { /* already closed */ }
+        throw err;
+      }
+    },
+    close() {
+      db.close();
+    },
+  };
+}
+
+function plainRow(result, row) {
+  if (!row) return null;
+  const obj = {};
+  for (const column of result.columns || []) obj[column] = row[column];
+  return Object.keys(obj).length ? obj : { ...row };
+}
+
+function libsqlDriver(client) {
+  return {
+    async exec(sql) {
+      await client.executeMultiple(sql);
+    },
+    async get(sql, args = []) {
+      const result = await client.execute({ sql, args });
+      return plainRow(result, result.rows[0]);
+    },
+    async all(sql, args = []) {
+      const result = await client.execute({ sql, args });
+      return result.rows.map((row) => plainRow(result, row));
+    },
+    async run(sql, args = []) {
+      const result = await client.execute({ sql, args });
+      return { lastInsertRowid: Number(result.lastInsertRowid || 0), changes: Number(result.rowsAffected || 0) };
+    },
+    async batch(statements) {
+      const result = await client.batch(statements.map((statement) => ({
+        sql: statement.sql,
+        args: statement.args || [],
+      })), 'write');
+      return result.map((item) => ({
+        lastInsertRowid: Number(item.lastInsertRowid || 0),
+        changes: Number(item.rowsAffected || 0),
+      }));
+    },
+    close() {
+      client.close();
+    },
+  };
+}
+
+async function connect(options) {
+  const tursoUrl = options.tursoUrl || '';
+  if (tursoUrl) {
+    const remote = /^(libsql|https?):/i.test(tursoUrl);
+    if (remote && !options.tursoAuthToken) {
+      throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL is a remote database.');
+    }
+    const { createClient } = await import('@libsql/client');
+    return libsqlDriver(createClient({
+      url: tursoUrl,
+      authToken: options.tursoAuthToken || undefined,
+    }));
+  }
+  return sqliteDriver(options.databasePath || ':memory:');
+}
+
+async function migrate(driver) {
+  await driver.exec('PRAGMA foreign_keys = ON;');
+  await driver.exec(SCHEMA);
+  for (const statement of USER_COLUMN_MIGRATIONS) {
     try {
-      const result = fn();
-      sqlite.exec('COMMIT');
-      return result;
+      await driver.exec(statement);
     } catch (err) {
-      try { sqlite.exec('ROLLBACK'); } catch { /* already closed */ }
-      throw err;
+      if (!/duplicate column|already exists/i.test(String(err.message))) throw err;
     }
   }
+}
 
+export async function openDatabase(fileOrOptions = ':memory:') {
+  const options = typeof fileOrOptions === 'string' ? { databasePath: fileOrOptions } : fileOrOptions;
+  const driver = await connect(options);
+  await migrate(driver);
+  return createRepo(driver);
+}
+
+function isUniqueError(err) {
+  return /UNIQUE|PRIMARY KEY|already exists/i.test(String(err?.message || err));
+}
+
+function createRepo(driver) {
   return {
-    sqlite,
-    close() {
-      sqlite.close();
+    async close() {
+      driver.close();
     },
-    ping() {
-      sqlite.prepare('SELECT 1 AS ok').get();
+    async ping() {
+      await driver.get('SELECT 1 AS ok');
     },
-    createUser({ email, passwordHash, plan = 'free', createdAt }) {
+    async createUser({ email, passwordHash, plan = 'free', createdAt }) {
       try {
-        const info = sqlite.prepare(
+        const info = await driver.run(
           'INSERT INTO users (email, password_hash, plan, created_at) VALUES (?, ?, ?, ?)',
-        ).run(email, passwordHash, plan, createdAt);
-        return this.findUserById(Number(info.lastInsertRowid));
+          [email, passwordHash, plan, createdAt],
+        );
+        return this.findUserById(info.lastInsertRowid);
       } catch (err) {
-        if (String(err.message).includes('UNIQUE')) return null;
+        if (isUniqueError(err)) return null;
         throw err;
       }
     },
-    findUserByEmail(email) {
-      return userFromRow(sqlite.prepare('SELECT * FROM users WHERE email = ?').get(email));
+    async findUserByEmail(email) {
+      return userFromRow(await driver.get('SELECT * FROM users WHERE email = ?', [email]));
     },
-    findUserById(id) {
-      return userFromRow(sqlite.prepare('SELECT * FROM users WHERE id = ?').get(id));
+    async findUserById(id) {
+      return userFromRow(await driver.get('SELECT * FROM users WHERE id = ?', [id]));
     },
-    setPlan(userId, plan) {
-      sqlite.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, userId);
+    async setPlan(userId, plan) {
+      await driver.run('UPDATE users SET plan = ? WHERE id = ?', [plan, userId]);
     },
-    setBillingCustomer(userId, customerId) {
-      sqlite.prepare('UPDATE users SET billing_customer_id = ? WHERE id = ?').run(customerId, userId);
+    async setPassword(userId, passwordHash) {
+      await driver.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
     },
-    findUserByBillingCustomer(customerId) {
-      return userFromRow(sqlite.prepare('SELECT * FROM users WHERE billing_customer_id = ?').get(customerId));
+    async setBillingCustomer(userId, customerId) {
+      await driver.run('UPDATE users SET billing_customer_id = ? WHERE id = ?', [customerId, userId]);
     },
-    markEmailVerified(userId, whenIso) {
-      sqlite.prepare('UPDATE users SET email_verified_at = ? WHERE id = ?').run(whenIso, userId);
+    async findUserByBillingCustomer(customerId) {
+      return userFromRow(await driver.get('SELECT * FROM users WHERE billing_customer_id = ?', [customerId]));
     },
-    setAlertsEnabled(userId, enabled) {
-      sqlite.prepare('UPDATE users SET alerts_enabled = ? WHERE id = ?').run(enabled ? 1 : 0, userId);
+    async markEmailVerified(userId, whenIso) {
+      await driver.run('UPDATE users SET email_verified_at = ? WHERE id = ?', [whenIso, userId]);
     },
-    deleteUser(userId) {
-      sqlite.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    async setAlertsEnabled(userId, enabled) {
+      await driver.run('UPDATE users SET alerts_enabled = ? WHERE id = ?', [enabled ? 1 : 0, userId]);
     },
-    deleteUserSessions(userId) {
-      sqlite.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    async deleteUser(userId) {
+      await driver.run('DELETE FROM users WHERE id = ?', [userId]);
     },
-    createEmailToken({ userId, purpose, tokenHash, expiresAt, createdAt }) {
-      sqlite.prepare('DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?').run(userId, purpose);
-      sqlite.prepare(
-        'INSERT INTO email_tokens (user_id, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
-      ).run(userId, purpose, tokenHash, expiresAt, createdAt);
+    async deleteUserSessions(userId) {
+      await driver.run('DELETE FROM sessions WHERE user_id = ?', [userId]);
     },
-    findEmailToken(tokenHash, purpose) {
-      const row = sqlite.prepare(
+    async createEmailToken({ userId, purpose, tokenHash, expiresAt, createdAt }) {
+      await driver.batch([
+        { sql: 'DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?', args: [userId, purpose] },
+        {
+          sql: 'INSERT INTO email_tokens (user_id, purpose, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
+          args: [userId, purpose, tokenHash, expiresAt, createdAt],
+        },
+      ]);
+    },
+    async findEmailToken(tokenHash, purpose) {
+      const row = await driver.get(
         'SELECT * FROM email_tokens WHERE token_hash = ? AND purpose = ?',
-      ).get(tokenHash, purpose);
+        [tokenHash, purpose],
+      );
       if (!row) return null;
-      return {
-        id: row.id,
-        userId: row.user_id,
-        purpose: row.purpose,
-        expiresAt: row.expires_at,
-      };
+      return { id: Number(row.id), userId: Number(row.user_id), purpose: row.purpose, expiresAt: row.expires_at };
     },
-    deleteEmailTokens(userId, purpose) {
-      sqlite.prepare('DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?').run(userId, purpose);
+    async deleteEmailTokens(userId, purpose) {
+      await driver.run('DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?', [userId, purpose]);
     },
-    claimBillingEvent(id, receivedAt) {
+    async claimBillingEvent(id, receivedAt) {
       try {
-        sqlite.prepare('INSERT INTO billing_events (id, received_at) VALUES (?, ?)').run(id, receivedAt);
+        await driver.run('INSERT INTO billing_events (id, received_at) VALUES (?, ?)', [id, receivedAt]);
         return true;
       } catch (err) {
-        if (String(err.message).includes('UNIQUE') || String(err.message).includes('PRIMARY')) return false;
+        if (isUniqueError(err)) return false;
         throw err;
       }
     },
-    forgetBillingEvent(id) {
-      sqlite.prepare('DELETE FROM billing_events WHERE id = ?').run(id);
+    async forgetBillingEvent(id) {
+      await driver.run('DELETE FROM billing_events WHERE id = ?', [id]);
     },
-    createSession({ token, userId, expiresAt }) {
-      sqlite.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, userId, expiresAt);
+    async createSession({ token, userId, expiresAt }) {
+      await driver.run('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)', [token, userId, expiresAt]);
     },
-    findSession(token) {
-      const row = sqlite.prepare('SELECT * FROM sessions WHERE token = ?').get(token);
+    async findSession(token) {
+      const row = await driver.get('SELECT * FROM sessions WHERE token = ?', [token]);
       if (!row) return null;
-      return { token: row.token, userId: row.user_id, expiresAt: row.expires_at };
+      return { token: row.token, userId: Number(row.user_id), expiresAt: row.expires_at };
     },
-    deleteSession(token) {
-      sqlite.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    async deleteSession(token) {
+      await driver.run('DELETE FROM sessions WHERE token = ?', [token]);
     },
-    countMonitors(userId) {
-      return sqlite.prepare('SELECT COUNT(*) AS n FROM monitors WHERE user_id = ?').get(userId).n;
+    async countMonitors(userId) {
+      const row = await driver.get('SELECT COUNT(*) AS n FROM monitors WHERE user_id = ?', [userId]);
+      return Number(row?.n || 0);
     },
-    listMonitors(userId) {
-      return sqlite.prepare(`${MONITOR_SELECT} WHERE monitors.user_id = ? ORDER BY monitors.id DESC`).all(userId).map(monitorFromRow);
+    async listMonitors(userId) {
+      const rows = await driver.all(`${MONITOR_SELECT} WHERE monitors.user_id = ? ORDER BY monitors.id DESC`, [userId]);
+      return rows.map(monitorFromRow);
     },
-    findMonitor(id, userId) {
-      return monitorFromRow(sqlite.prepare(`${MONITOR_SELECT} WHERE monitors.id = ? AND monitors.user_id = ?`).get(id, userId));
+    async findMonitor(id, userId) {
+      return monitorFromRow(await driver.get(
+        `${MONITOR_SELECT} WHERE monitors.id = ? AND monitors.user_id = ?`,
+        [id, userId],
+      ));
     },
-    findDuplicate(userId, url, selector, mode) {
-      return sqlite.prepare(
+    async findDuplicate(userId, url, selector, mode) {
+      return await driver.get(
         'SELECT id FROM monitors WHERE user_id = ? AND url = ? AND selector = ? AND mode = ?',
-      ).get(userId, url, selector, mode) || null;
+        [userId, url, selector, mode],
+      ) || null;
     },
-    createMonitor(row) {
-      const info = sqlite.prepare(`
+    async createMonitor(row) {
+      const info = await driver.run(`
         INSERT INTO monitors (user_id, url, label, selector, mode, frequency, created_at, next_check_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(row.userId, row.url, row.label, row.selector, row.mode, row.frequency, row.createdAt, row.nextCheckAt);
-      return this.findMonitor(Number(info.lastInsertRowid), row.userId);
+      `, [row.userId, row.url, row.label, row.selector, row.mode, row.frequency, row.createdAt, row.nextCheckAt]);
+      return this.findMonitor(info.lastInsertRowid, row.userId);
     },
-    deleteMonitor(id, userId) {
-      return sqlite.prepare('DELETE FROM monitors WHERE id = ? AND user_id = ?').run(id, userId).changes > 0;
+    async deleteMonitor(id, userId) {
+      const info = await driver.run('DELETE FROM monitors WHERE id = ? AND user_id = ?', [id, userId]);
+      return info.changes > 0;
     },
-    listDue(nowIso, limit = 25) {
-      return sqlite.prepare(`${MONITOR_SELECT} WHERE monitors.next_check_at <= ? ORDER BY monitors.next_check_at ASC LIMIT ?`).all(nowIso, limit).map(monitorFromRow);
+    async listDue(nowIso, limit = 25) {
+      const rows = await driver.all(
+        `${MONITOR_SELECT} WHERE monitors.next_check_at <= ? ORDER BY monitors.next_check_at ASC LIMIT ?`,
+        [nowIso, limit],
+      );
+      return rows.map(monitorFromRow);
     },
-    finishCheck(id, { status, error = '', nextCheckAt, checkedAt, contentHash }) {
-      sqlite.prepare(`
+    async finishCheck(id, { status, error = '', nextCheckAt, checkedAt, contentHash }) {
+      await driver.run(`
         UPDATE monitors
         SET last_status = ?, last_error = ?, next_check_at = ?, last_checked_at = ?, content_hash = COALESCE(?, content_hash)
         WHERE id = ?
-      `).run(status, error, nextCheckAt, checkedAt, contentHash ?? null, id);
+      `, [status, error, nextCheckAt, checkedAt, contentHash ?? null, id]);
     },
-    setMonitorError(id, error) {
-      sqlite.prepare('UPDATE monitors SET last_error = ? WHERE id = ?').run(error, id);
+    async setMonitorError(id, error) {
+      await driver.run('UPDATE monitors SET last_error = ? WHERE id = ?', [error, id]);
     },
-    clearError(id) {
-      sqlite.prepare("UPDATE monitors SET last_error = '' WHERE id = ?").run(id);
+    async clearError(id) {
+      await driver.run("UPDATE monitors SET last_error = '' WHERE id = ?", [id]);
     },
-    latestSnapshot(monitorId) {
-      return snapshotFromRow(sqlite.prepare(
+    async latestSnapshot(monitorId) {
+      return snapshotFromRow(await driver.get(
         'SELECT * FROM snapshots WHERE monitor_id = ? ORDER BY id DESC LIMIT 1',
-      ).get(monitorId));
+        [monitorId],
+      ));
     },
-    getSnapshot(id) {
-      return snapshotFromRow(sqlite.prepare('SELECT * FROM snapshots WHERE id = ?').get(id));
+    async getSnapshot(id) {
+      return snapshotFromRow(await driver.get('SELECT * FROM snapshots WHERE id = ?', [id]));
     },
-    recordCheck({ monitorId, snapshot, change, finish }) {
-      return transaction(() => {
-        const snap = sqlite.prepare(`
-          INSERT INTO snapshots (monitor_id, checked_at, content_hash, text, prices_json, http_status)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(
+    async recordCheck({ monitorId, snapshot, change, finish }) {
+      const statements = [{
+        sql: `INSERT INTO snapshots (monitor_id, checked_at, content_hash, text, prices_json, http_status)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [
           monitorId,
           snapshot.checkedAt,
           snapshot.contentHash,
-          snapshot.text,
-          JSON.stringify(snapshot.prices || []),
+          trimText(snapshot.text, TEXT_CAP),
+          trimText(JSON.stringify(snapshot.prices || []), 4_000),
           snapshot.httpStatus || 0,
-        );
-        const snapshotId = Number(snap.lastInsertRowid);
-        let changeId = null;
-        if (change) {
-          const info = sqlite.prepare(`
-            INSERT INTO changes (monitor_id, snapshot_id, previous_snapshot_id, summary, diff_json, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `).run(
+        ],
+      }];
+      if (change) {
+        statements.push({
+          sql: `INSERT INTO changes (monitor_id, snapshot_id, previous_snapshot_id, summary, diff_json, created_at)
+                VALUES (?, last_insert_rowid(), ?, ?, ?, ?)`,
+          args: [
             monitorId,
-            snapshotId,
-            change.previousSnapshotId,
-            change.summary,
-            JSON.stringify(change.diff),
+            change.previousSnapshotId ?? null,
+            trimText(change.summary, 500),
+            trimDiff(change.diff),
             snapshot.checkedAt,
-          );
-          changeId = Number(info.lastInsertRowid);
-        }
-        this.finishCheck(monitorId, finish);
-        return { snapshotId, changeId };
+          ],
+        });
+      }
+      statements.push({
+        sql: `UPDATE monitors
+              SET last_status = ?, last_error = ?, next_check_at = ?, last_checked_at = ?, content_hash = COALESCE(?, content_hash)
+              WHERE id = ?`,
+        args: [finish.status, finish.error || '', finish.nextCheckAt, finish.checkedAt, finish.contentHash ?? null, monitorId],
       });
+      const results = await driver.batch(statements);
+      await this.pruneHistory(monitorId);
+      return {
+        snapshotId: results[0].lastInsertRowid,
+        changeId: change ? results[1].lastInsertRowid : null,
+      };
     },
-    listChanges(monitorId, limit = 50) {
-      return sqlite.prepare(
+    async pruneHistory(monitorId) {
+      await driver.run(`DELETE FROM changes WHERE monitor_id = ? AND id NOT IN (
+        SELECT id FROM changes WHERE monitor_id = ? ORDER BY id DESC LIMIT ${CHANGES_KEEP}
+      )`, [monitorId, monitorId]);
+      await driver.run(`DELETE FROM snapshots WHERE monitor_id = ? AND id NOT IN (
+        SELECT id FROM snapshots WHERE monitor_id = ? ORDER BY id DESC LIMIT ${SNAPSHOTS_KEEP}
+      ) AND id NOT IN (SELECT snapshot_id FROM changes WHERE monitor_id = ?)
+        AND id NOT IN (
+          SELECT previous_snapshot_id FROM changes
+          WHERE monitor_id = ? AND previous_snapshot_id IS NOT NULL
+        )`, [monitorId, monitorId, monitorId, monitorId]);
+    },
+    async listChanges(monitorId, limit = 50) {
+      const rows = await driver.all(
         'SELECT * FROM changes WHERE monitor_id = ? ORDER BY id DESC LIMIT ?',
-      ).all(monitorId, limit).map(changeFromRow);
+        [monitorId, limit],
+      );
+      return rows.map(changeFromRow);
     },
-    findChange(id, userId) {
-      return changeFromRow(sqlite.prepare(`
+    async findChange(id, userId) {
+      return changeFromRow(await driver.get(`
         SELECT changes.*, monitors.url, monitors.label, users.email AS user_email,
                users.id AS owner_id, users.alerts_enabled AS alerts_enabled
         FROM changes
         JOIN monitors ON monitors.id = changes.monitor_id
         JOIN users ON users.id = monitors.user_id
         WHERE changes.id = ? AND monitors.user_id = ?
-      `).get(id, userId));
+      `, [id, userId]));
     },
-    listUnalerted(limit = 20) {
-      return sqlite.prepare(`
+    async listUnalerted(limit = 20) {
+      const rows = await driver.all(`
         SELECT changes.*, monitors.url, monitors.label, users.email AS user_email,
                users.id AS owner_id, users.alerts_enabled AS alerts_enabled
         FROM changes
@@ -391,27 +560,53 @@ function createRepo(sqlite) {
         WHERE changes.alerted_at IS NULL
         ORDER BY changes.id ASC
         LIMIT ?
-      `).all(limit).map(changeFromRow);
+      `, [limit]);
+      return rows.map(changeFromRow);
     },
-    claimAlert(id) {
-      return sqlite.prepare("UPDATE changes SET alerted_at = '' WHERE id = ? AND alerted_at IS NULL").run(id).changes === 1;
+    async claimAlert(id) {
+      const info = await driver.run("UPDATE changes SET alerted_at = '' WHERE id = ? AND alerted_at IS NULL", [id]);
+      return info.changes === 1;
     },
-    releaseAlert(id) {
-      sqlite.prepare("UPDATE changes SET alerted_at = NULL WHERE id = ? AND alerted_at = ''").run(id);
+    async releaseAlert(id) {
+      await driver.run("UPDATE changes SET alerted_at = NULL WHERE id = ? AND alerted_at = ''", [id]);
     },
-    markAlerted(id, whenIso) {
-      sqlite.prepare("UPDATE changes SET alerted_at = ? WHERE id = ? AND alerted_at = ''").run(whenIso, id);
+    async markAlerted(id, whenIso) {
+      await driver.run("UPDATE changes SET alerted_at = ? WHERE id = ? AND alerted_at = ''", [whenIso, id]);
     },
-    getRobots(origin) {
-      const row = sqlite.prepare('SELECT * FROM robots_cache WHERE origin = ?').get(origin);
+    async getRobots(origin) {
+      const row = await driver.get('SELECT * FROM robots_cache WHERE origin = ?', [origin]);
       if (!row) return null;
-      return { origin: row.origin, body: row.body, fetchedAt: row.fetched_at, status: row.status };
+      return { origin: row.origin, body: row.body, fetchedAt: row.fetched_at, status: Number(row.status) };
     },
-    putRobots({ origin, body, fetchedAt, status }) {
-      sqlite.prepare(`
+    async putRobots({ origin, body, fetchedAt, status }) {
+      await driver.run(`
         INSERT INTO robots_cache (origin, body, fetched_at, status) VALUES (?, ?, ?, ?)
         ON CONFLICT(origin) DO UPDATE SET body = excluded.body, fetched_at = excluded.fetched_at, status = excluded.status
-      `).run(origin, body, fetchedAt, status);
+      `, [origin, trimText(body, ROBOTS_CAP), fetchedAt, status]);
+    },
+    async allowRate(key, limit, windowMs) {
+      const windowStart = Math.floor(Date.now() / windowMs) * windowMs;
+      const row = await driver.get('SELECT window_start, count FROM rate_limits WHERE key = ?', [key]);
+      if (!row || Number(row.window_start) !== windowStart) {
+        await driver.run(`
+          INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+          ON CONFLICT(key) DO UPDATE SET window_start = excluded.window_start, count = 1
+        `, [key, windowStart]);
+        return true;
+      }
+      if (Number(row.count) >= limit) return false;
+      await driver.run('UPDATE rate_limits SET count = count + 1 WHERE key = ?', [key]);
+      return true;
+    },
+    async reserveMailSend(limit) {
+      const day = new Date().toISOString().slice(0, 10);
+      const row = await driver.get('SELECT count FROM mail_daily WHERE day = ?', [day]);
+      if (row && Number(row.count) >= limit) return false;
+      await driver.run(`
+        INSERT INTO mail_daily (day, count) VALUES (?, 1)
+        ON CONFLICT(day) DO UPDATE SET count = count + 1
+      `, [day]);
+      return true;
     },
   };
 }

@@ -5,10 +5,14 @@ import { createHostLimiter } from './net.js';
 import { createBillingProvider } from './billing.js';
 import { createRateLimiter } from './rate-limit.js';
 
-export function buildContext(env = process.env) {
+export async function buildContext(env = process.env) {
   const config = loadConfig(env);
-  const db = openDatabase(config.databasePath);
-  const mailer = createMailer(config);
+  const db = await openDatabase({
+    databasePath: config.databasePath,
+    tursoUrl: config.tursoDatabaseUrl,
+    tursoAuthToken: config.tursoAuthToken,
+  });
+  const mailer = createMailer(config, db);
   const limiter = createHostLimiter({ minIntervalMs: config.fetchMinIntervalMs });
   return {
     config,

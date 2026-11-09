@@ -3,7 +3,7 @@ import { checkDueMonitors } from './checker.js';
 import { loadEnvFile, serverRoot } from './config.js';
 
 loadEnvFile(serverRoot());
-const ctx = buildContext();
+const ctx = await buildContext();
 
 try {
   const results = await checkDueMonitors(ctx);

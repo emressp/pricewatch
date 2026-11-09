@@ -3,7 +3,7 @@ import test from 'node:test';
 import { checkMonitor } from '../src/checker.js';
 import { buildContext } from '../src/bootstrap.js';
 
-function context() {
+async function context() {
   return buildContext({
     NODE_ENV: 'test',
     DATABASE_PATH: ':memory:',
@@ -16,8 +16,8 @@ function context() {
   });
 }
 
-function seed(ctx) {
-  const user = ctx.db.createUser({
+async function seed(ctx) {
+  const user = await ctx.db.createUser({
     email: 'ada@example.com',
     passwordHash: 'x',
     createdAt: new Date().toISOString(),
@@ -35,7 +35,7 @@ function seed(ctx) {
 }
 
 test('a disallowed robots.txt path is not fetched', async () => {
-  const ctx = context();
+  const ctx = await context();
   const calls = [];
   ctx.fetchImpl = async (url, options) => {
     calls.push({ href: String(url), ua: options.headers['user-agent'] });
@@ -47,15 +47,15 @@ test('a disallowed robots.txt path is not fetched', async () => {
     }
     return new Response('<p>Secret — $9</p>', { status: 200, headers: { 'content-type': 'text/html' } });
   };
-  const monitor = seed(ctx);
-  const result = await checkMonitor(ctx, ctx.db.findMonitor(monitor.id, monitor.userId));
+  const monitor = await seed(ctx);
+  const result = await checkMonitor(ctx, await ctx.db.findMonitor(monitor.id, monitor.userId));
   assert.equal(result.status, 'blocked');
   assert.equal(calls.some((call) => call.href.includes('/secret') && !call.href.endsWith('/robots.txt')), false);
   ctx.db.close();
 });
 
 test('an allowed page is fetched with the Pricewatch user agent and can alert', async () => {
-  const ctx = context();
+  const ctx = await context();
   const sent = [];
   ctx.mailer = { async send(message) { sent.push(message); } };
   let html = '<html><body><p>Pen — $4</p></body></html>';
@@ -67,13 +67,13 @@ test('an allowed page is fetched with the Pricewatch user agent and can alert', 
     }
     return new Response(html, { status: 200, headers: { 'content-type': 'text/html' } });
   };
-  const monitor = seed(ctx);
+  const monitor = await seed(ctx);
   const loaded = () => ctx.db.findMonitor(monitor.id, monitor.userId);
-  const first = await checkMonitor(ctx, loaded());
+  const first = await checkMonitor(ctx, await loaded());
   assert.equal(first.status, 'baseline');
   assert.equal(sent.length, 0);
   html = '<html><body><p>Pen — $6</p></body></html>';
-  const second = await checkMonitor(ctx, loaded());
+  const second = await checkMonitor(ctx, await loaded());
   assert.equal(second.status, 'changed');
   assert.equal(second.summary, 'Pen: $4 → $6');
   assert.equal(sent.length, 1);
