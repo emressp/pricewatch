@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy — Pricewatch</title>
+  <link rel="canonical" href="https://emressp.github.io/pricewatch/privacy/" />
+  <meta name="description" content="What Pricewatch stores and who receives it." />
+  <style>
+    :root { --ink:#0b1220; --muted:#5b6b7c; --line:#e6ebf2; --bg:#f6f8fc; --card:#fff; --brand:#4f46e5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; }
+    a { color: var(--brand); }
+    .nav, .wrap, footer { max-width:720px; margin:0 auto; padding:18px 20px; }
+    .logo { font-weight:800; letter-spacing:-0.02em; font-size:18px; color:inherit; text-decoration:none; }
+    .logo span { color: var(--brand); }
+    h1 { font-size:32px; letter-spacing:-0.03em; margin:0 0 12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; }
+    .muted { color: var(--muted); }
+    footer { color: var(--muted); font-size:12px; }
+  </style>
+</head>
+<body>
+  <nav class="nav"><a class="logo" href="../">Price<span>watch</span></a></nav>
+  <main class="wrap">
+    <h1>Privacy</h1>
+    <div class="card">
+      <p>Change Monitor stores the email you sign up with, a scrypt hash of your password, the URLs you watch, extracted page text, and the diffs we email you. We also store a Polar customer id when you subscribe, so a later cancellation can move the account back to the free plan. Card numbers stay with Polar. We do not store them.</p>
+      <p>The browser keeps an HttpOnly session cookie and an HttpOnly CSRF cookie. Both are SameSite=Lax, and Secure when the site is served over HTTPS.</p>
+      <p>Alert email is sent through the mail provider configured on the server (Resend, when that is the SMTP host). Each alert includes a link to turn alerts off. Confirmation and password-reset emails go to the same address.</p>
+      <p>You can delete monitors in the app, turn alerts off, or delete the account from Settings. That removes the login and the stored pages from this service. To ask for anything else, email <a href="mailto:getpricewatch@mail.grokbot.com">getpricewatch@mail.grokbot.com</a>.</p>
+      <p class="muted">Last updated 9 November 2026.</p>
+    </div>
+  </main>
+  <footer><a href="../terms/">Terms</a> · <a href="../">Home</a></footer>
+</body>
+</html>

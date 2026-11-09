@@ -72,7 +72,7 @@
     <div class="nav-links">
       <a class="link" href="../">Weekly intel</a>
       <a class="link" href="../pricing/">Tracked products</a>
-      <a class="btn-sm" href="../app/">Start free</a>
+      <a class="btn-sm" href="../app/" data-app="/app/signup">Start free</a>
     </div>
   </nav>
 
@@ -84,7 +84,7 @@
         Paste a public URL. Pricewatch checks it on a schedule, ignores cookie banners, ads, timestamps, and session tokens, and sends a readable old-vs-new diff.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="../app/">Start free</a>
+        <a class="btn btn-primary" href="../app/" data-app="/app/signup">Start free</a>
         <a class="btn btn-ghost" href="#pricing">See plans</a>
       </div>
       <p class="trust">Free for 3 URLs, checked daily. No card required. The first check saves a baseline and does not email you.</p>
@@ -157,7 +157,7 @@
           <li>Price-only mode or whole page</li>
           <li>Email alerts and change history</li>
         </ul>
-        <a href="../app/">Start free</a>
+        <a href="../app/" data-app="/app/signup">Start free</a>
       </div>
       <div class="plan featured">
         <div class="tag">Most popular</div>
@@ -170,7 +170,7 @@
           <li>CSS selector to watch part of a page</li>
           <li>Full old-vs-new history</li>
         </ul>
-        <a href="../app/">Create account</a>
+        <a href="../app/" data-app="/app/signup">Create account</a>
       </div>
       <div class="plan">
         <h3>Research</h3>
@@ -182,16 +182,26 @@
           <li>Everything in Seller</li>
           <li>Built for a large watchlist</li>
         </ul>
-        <a href="../app/">Create account</a>
+        <a href="../app/" data-app="/app/signup">Create account</a>
       </div>
     </div>
-    <p class="trust" style="margin-top:14px">Checks respect robots.txt and wait between requests to the same site. Paid checkout is not wired in this version — the free plan works as soon as the monitor service is running. See the README before charging for Seller or Research.</p>
+    <p class="trust" style="margin-top:14px">Checks respect robots.txt and wait between requests to the same site. Seller and Research are Polar subscriptions in the existing Pricewatch organization. The free plan works as soon as the monitor service is running.</p>
   </section>
 
   <footer>
-    <p><a href="../">Weekly SaaS pricing intel</a> · <a href="../pricing/">Tracked products</a> · <a href="../app/">Open the app</a></p>
+    <p><a href="../">Weekly SaaS pricing intel</a> · <a href="../pricing/">Tracked products</a> · <a href="../app/" data-app="/app/signup">Open the app</a> · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy</a></p>
     <p>On GitHub Pages, “Start free” opens setup instructions until the monitor service is deployed on this host. Locally, <code>npm start</code> serves the signup form at that same path.</p>
     <p>© 2026 Pricewatch · Not affiliated with the sites you choose to monitor.</p>
   </footer>
+  <script src="../app-url.js"></script>
+  <script>
+    (function () {
+      var origin = String(window.PRICEWATCH_APP_ORIGIN || "").replace(/\/$/, "");
+      if (!origin) return;
+      document.querySelectorAll("[data-app]").forEach(function (el) {
+        el.href = origin + el.getAttribute("data-app");
+      });
+    })();
+  </script>
 </body>
 </html>

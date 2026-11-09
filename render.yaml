@@ -1,0 +1,56 @@
+# One web service. The checker runs inside this process, so keep a single instance.
+# Persistent disk holds the SQLite file. Render injects PORT.
+services:
+  - type: web
+    name: pricewatch-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_PATH
+        value: /var/data/pricewatch.sqlite
+      - key: OUTBOX_DIR
+        value: /var/data/outbox
+      - key: CHECKER_ENABLED
+        value: "1"
+      - key: ALLOW_LOCAL_FETCH
+        value: "0"
+      - key: DEMO_ENABLED
+        value: "0"
+      - key: ALLOW_PLAN_SWITCH
+        value: "0"
+      - key: POLAR_SERVER
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: POLAR_ACCESS_TOKEN
+        sync: false
+      - key: POLAR_WEBHOOK_SECRET
+        sync: false
+      - key: POLAR_SELLER_PRODUCT_ID
+        sync: false
+      - key: POLAR_RESEARCH_PRODUCT_ID
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.resend.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: resend
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+    disk:
+      name: pricewatch-data
+      mountPath: /var/data
+      sizeGB: 1
