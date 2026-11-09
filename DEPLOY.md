@@ -86,13 +86,11 @@ Port 587 uses STARTTLS. `MAIL_FROM` must be the same Gmail address as `SMTP_USER
 
 ## 7. Keep the free instance awake
 
-Render will not run the timer while the service is asleep. `.github/workflows/keepalive.yml` runs every 10 minutes.
+Render will not run the timer while the service is asleep. `.github/workflows/keepalive.yml` runs every 10 minutes and needs no GitHub settings.
 
-1. In the GitHub repo, set the Actions variable `APP_URL` to `https://pricewatch-2wxd.onrender.com` with no trailing slash.
-2. Set the Actions secret `CRON_SECRET` to the same value as Render’s `CRON_SECRET`.
-3. The workflow calls `/health` and `GET /cron/tick` with `Authorization: Bearer <CRON_SECRET>`. If `APP_URL` is empty, the job exits without failing.
+It pings `https://pricewatch-2wxd.onrender.com/health`, retrying twice and allowing about 60 seconds for a cold start. Set the Actions variable `APP_URL` only if you want a different origin.
 
-`/cron/tick` runs one due-check pass. It returns 401 when the secret is missing or wrong.
+`/cron/tick` runs only when the Actions secret `CRON_SECRET` is set to the same value as Render’s `CRON_SECRET`. If that secret is empty, the workflow skips the tick. Waking the service is enough: the in-process checker runs while the instance is awake.
 
 ## 8. Env vars
 
@@ -102,7 +100,7 @@ Render will not run the timer while the service is asleep. `.github/workflows/ke
 | `TRUST_PROXY` | yes | `1` |
 | `APP_BASE_URL` | yes | `https://pricewatch-2wxd.onrender.com` |
 | `SESSION_SECRET` | yes | long random string |
-| `CRON_SECRET` | yes | long random string, also stored as a GitHub Actions secret |
+| `CRON_SECRET` | yes on Render | long random string. The GitHub Actions secret is optional; without it, keepalive only pings `/health` |
 | `TURSO_DATABASE_URL` | yes | `libsql://...` from Turso |
 | `TURSO_AUTH_TOKEN` | yes | Turso database token |
 | `CHECKER_ENABLED` | yes | `1` |
