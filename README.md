@@ -116,7 +116,7 @@ Production checklist:
 - `APP_BASE_URL` must be the public `https` origin. Alert links are built from it.
 - Do not commit `.env`. Copy `server/.env.example` and fill it in on the host.
 - Run a single checker. Either leave `CHECKER_ENABLED=1` (default, every `CHECK_INTERVAL_SECONDS`) or set it to `0` and cron `npm run check` once a minute. Two checkers are safe against double email, but they still double-fetch.
-- Seller and Research are Polar subscriptions in the existing Pricewatch organization (the same one as the Scout, Operator, and Team checkout links). Product ids come from env vars. See [DEPLOY.md](DEPLOY.md).
+- Seller ($19/mo) and Research ($49/mo) are Polar subscriptions in the existing Pricewatch organization. Product ids come from env vars. See [DEPLOY.md](DEPLOY.md).
 
 If the marketing site stays on GitHub Pages and the service lives on another host, point the “Start free” links at that host. On one host (the Docker image, or a reverse proxy), the relative links already land on `/app`.
 

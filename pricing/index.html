@@ -293,14 +293,12 @@ footer.site { margin-top:36px; padding-top:18px; border-top:1px solid var(--line
 
     <section class="cta">
       <h2>Get alerted when these products change pricing</h2>
-      <p>Subscribe for weekly plain-English intel with citations — or join the free waitlist if you are not ready yet.</p>
+      <p>Start free with 3 pages checked daily. Upgrade in the app to Seller ($19/mo) or Research ($49/mo) for more pages and hourly checks.</p>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-        <a href="https://buy.polar.sh/polar_cl_8YWq401nq9e6UlHBeSqXP4TUUdqInBmtRsI0S1UlLwO" target="_blank" rel="noopener">Subscribe · Scout $19/mo</a>
-        <a href="https://buy.polar.sh/polar_cl_lyjbaMA3toQmHvmJDSbzhwg4nPExRzveS0SZv2M0q4r" target="_blank" rel="noopener">Subscribe · Operator $49/mo</a>
-        <a href="https://buy.polar.sh/polar_cl_k6KkqRKD2KDrMvWZaMiHC2KFbK4MCBFJoaKBu2r8pSB" target="_blank" rel="noopener">Subscribe · Team $99/mo</a>
-        <a href="https://tally.so/r/perWg1" target="_blank" rel="noopener" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);">Free waitlist →</a>
+        <a href="../app/" data-app="/app/signup">Start free</a>
+        <a href="../#pricing">See plans</a>
       </div>
-      <p style="font-size:13px;opacity:.85;margin-top:4px;"><a href="https://emressp.github.io/pricewatch/#pricing" style="color:#fff;text-decoration:underline;">See full plan details on the homepage</a></p>
+      <p style="font-size:13px;opacity:.85;margin-top:4px;"><a href="../#pricing" style="color:#fff;text-decoration:underline;">See full plan details on the homepage</a></p>
     </section>
 
   </main>
@@ -308,5 +306,15 @@ footer.site { margin-top:36px; padding-top:18px; border-top:1px solid var(--line
     <p>© 2026 Pricewatch · Weekly SaaS pricing intel · Not affiliated with monitored vendors.</p>
     <p>Snapshot run <code>20261102_005325</code> · Times in Africa/Lagos (WAT). Heuristic HTML extraction is best-effort; narrative changes require citations.</p>
   </footer>
+  <script src="../app-url.js"></script>
+  <script>
+    (function () {
+      var origin = String(window.PRICEWATCH_APP_ORIGIN || "").replace(/\/$/, "");
+      if (!origin) return;
+      document.querySelectorAll("[data-app]").forEach(function (el) {
+        el.href = origin + el.getAttribute("data-app");
+      });
+    })();
+  </script>
 </body>
 </html>

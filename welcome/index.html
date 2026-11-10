@@ -6,7 +6,7 @@
   <title>Welcome to Pricewatch — set up your watchlist</title>
   <link rel="canonical" href="https://emressp.github.io/pricewatch/welcome/" />
   <meta name="robots" content="noindex" />
-  <meta name="description" content="You are in. Send your competitor pricing URLs so Pricewatch can start your weekly brief." />
+  <meta name="description" content="You are in. Open the app to add the pages you want watched, or email your list if you prefer." />
   <style>
     :root {
       --ink: #0b1220; --muted: #5b6b7c; --line: #e6ebf2; --bg: #f6f8fc;
@@ -49,14 +49,15 @@
     <div class="badge">Payment received · next step</div>
     <h1>Welcome — tell us which competitors to watch.</h1>
     <p class="lede">
-      Polar checkout succeeded. Reply with the public pricing-page URLs you want monitored and we will start your weekly plain-English brief.
+      Polar checkout succeeded. Add the public pages you want watched in the app — or email the list if you prefer. Seller is $19/mo (25 pages, hourly or daily checks). Research is $49/mo (100 pages, hourly or daily checks).
     </p>
 
     <section class="card">
       <h2>1. Email your watchlist (takes ~2 minutes)</h2>
       <p class="muted">Use the button below — it opens your mail app with a ready template to <strong>getpricewatch@mail.grokbot.com</strong>.</p>
-      <a class="btn" href="mailto:getpricewatch@mail.grokbot.com?subject=Pricewatch%20onboarding&body=Hi%20Pricewatch%20team%2C%0A%0APolar%20email%20%2F%20receipt%3A%20%0APlan%20(Scout%20%2F%20Operator%20%2F%20Team)%3A%20%0ACompany%20%2F%20name%3A%20%0A%0ACompetitor%20pricing%20URLs%20to%20watch%20(one%20per%20line)%3A%20%0A1.%20https%3A%2F%2F%0A2.%20https%3A%2F%2F%0A3.%20https%3A%2F%2F%0A%0AAny%20notes%20(categories%2C%20alert%20preferences)%3A%20%0A%0AThanks%21%0A">
-        Open onboarding email →
+      <a class="btn" href="https://pricewatch-2wxd.onrender.com/app" data-app="/app" style="margin-right:10px">Open the app →</a>
+      <a class="btn" href="mailto:getpricewatch@mail.grokbot.com?subject=Pricewatch%20onboarding&body=Hi%20Pricewatch%20team%2C%0A%0APolar%20email%20%2F%20receipt%3A%20%0APlan%20(Seller%20%2F%20Research)%3A%20%0ACompany%20%2F%20name%3A%20%0A%0APages%20to%20watch%20(one%20per%20line)%3A%20%0A1.%20https%3A%2F%2F%0A2.%20https%3A%2F%2F%0A3.%20https%3A%2F%2F%0A%0AAny%20notes%20(categories%2C%20alert%20preferences)%3A%20%0A%0AThanks%21%0A" style="background:transparent;color:#4f46e5;border:1px solid #e6ebf2">
+        Or email your watchlist
       </a>
       <div class="template">To: getpricewatch@mail.grokbot.com
 Subject: Pricewatch onboarding
@@ -64,10 +65,10 @@ Subject: Pricewatch onboarding
 Hi Pricewatch team,
 
 Polar email / receipt:
-Plan (Scout / Operator / Team):
+Plan (Seller / Research):
 Company / name:
 
-Competitor pricing URLs to watch (one per line):
+Pages to watch (one per line):
 1. https://
 2. https://
 3. https://
@@ -80,14 +81,14 @@ Thanks!</div>
     <section class="card">
       <h2>2. What happens next</h2>
       <ol>
-        <li>We confirm your plan limits and add your URLs to the private monitor.</li>
-        <li>You get a baseline snapshot, then a <strong>weekly brief</strong> (markdown/HTML) covering plan adds/removes, price moves, and limit changes.</li>
-        <li>Operator and Team also get change signals when a mid-week move is detected.</li>
+        <li>We confirm your plan limits. You can also add pages yourself in the app after you sign in.</li>
+        <li>The first check saves a baseline and does not send an email. Later checks email you when prices, products, or page details change.</li>
+        <li>Seller and Research can run hourly checks and keep the full old-vs-new history in the app.</li>
       </ol>
       <div class="limits">
-        <div><strong>Scout — $19/mo</strong>Up to 5 competitor pages · weekly brief</div>
-        <div><strong>Operator — $49/mo</strong>Up to 20 pages · weekly + instant alerts · history</div>
-        <div><strong>Team — $99/mo</strong>Up to 50 pages · alerts · history · team access</div>
+        <div><strong>Watch — Free</strong>3 pages · daily checks</div>
+        <div><strong>Seller — $19/mo</strong>25 pages · hourly or daily checks · history</div>
+        <div><strong>Research — $49/mo</strong>100 pages · hourly or daily checks · history</div>
       </div>
     </section>
 
@@ -105,5 +106,15 @@ Thanks!</div>
     <p>© 2026 Pricewatch · Payments via Polar · <a href="../">Home</a></p>
     <p>— the Pricewatch team</p>
   </footer>
+  <script src="../app-url.js"></script>
+  <script>
+    (function () {
+      var origin = String(window.PRICEWATCH_APP_ORIGIN || "").replace(/\/$/, "");
+      if (!origin) return;
+      document.querySelectorAll("[data-app]").forEach(function (el) {
+        el.href = origin + el.getAttribute("data-app");
+      });
+    })();
+  </script>
 </body>
 </html>

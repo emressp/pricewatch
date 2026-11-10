@@ -73,7 +73,15 @@ test('the marketing pages and the app shell are served together', async () => {
     assert.equal(home.status, 200);
     assert.match(home.text, /Website Change Monitor/);
     assert.match(home.text, /href="app\/"/);
-    assert.match(home.text, /buy\.polar\.sh\/polar_cl_8YWq401nq9e6UlHBeSqXP4TUUdqInBmtRsI0S1UlLwO/);
+    assert.match(home.text, /<h3>Watch<\/h3>/);
+    assert.match(home.text, /<h3>Seller<\/h3>/);
+    assert.match(home.text, /<h3>Research<\/h3>/);
+    assert.match(home.text, /\$19/);
+    assert.match(home.text, /\$49/);
+    assert.match(home.text, /3 pages, checked daily/);
+    assert.match(home.text, /data-app="\/app\/signup"/);
+    assert.doesNotMatch(home.text, /\$99/);
+    assert.doesNotMatch(home.text, /Scout/);
     const plans = await app.request('/monitor/');
     assert.equal(plans.status, 200);
     assert.match(plans.text, /Research/);

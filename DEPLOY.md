@@ -6,9 +6,8 @@ Polar is already the merchant of record for Pricewatch. The live checkout links 
 
 | Product on the site | Checkout link |
 | --- | --- |
-| Scout, $19/mo | https://buy.polar.sh/polar_cl_8YWq401nq9e6UlHBeSqXP4TUUdqInBmtRsI0S1UlLwO |
-| Operator, $49/mo | https://buy.polar.sh/polar_cl_lyjbaMA3toQmHvmJDSbzhwg4nPExRzveS0SZv2M0q4r |
-| Team, $99/mo | https://buy.polar.sh/polar_cl_k6KkqRKD2KDrMvWZaMiHC2KFbK4MCBFJoaKBu2r8pSB |
+| Seller, $19/mo | https://buy.polar.sh/polar_cl_8YWq401nq9e6UlHBeSqXP4TUUdqInBmtRsI0S1UlLwO |
+| Research, $49/mo | https://buy.polar.sh/polar_cl_lyjbaMA3toQmHvmJDSbzhwg4nPExRzveS0SZv2M0q4r |
 | Outreach kit, $19 | https://buy.polar.sh/polar_cl_BWEw9YU4NaJ5ti0CmqjRzM3QnY0Eom1H7Sf5B1g0WuF |
 
 Use that same Polar organization. Do not create a second one.
@@ -19,7 +18,7 @@ In the existing org, open Products.
 
 Either:
 
-- copy the product id of an existing product you want to attach to a Change Monitor tier (Scout is the $19 product, Operator is the $49 product), or
+- copy the product id of an existing product you want to attach to a Change Monitor tier (Seller is the $19/mo product, Research is the $49/mo product), or
 - add two new products in that org: Seller at $19/mo and Research at $49/mo.
 
 Paste the product UUIDs into `POLAR_SELLER_PRODUCT_ID` and `POLAR_RESEARCH_PRODUCT_ID`. Those are not the `polar_cl_…` checkout-link ids.
