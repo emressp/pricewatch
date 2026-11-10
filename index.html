@@ -8,12 +8,12 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Pricewatch" />
   <meta property="og:title" content="Pricewatch — Weekly SaaS Pricing Intel" />
-  <meta property="og:description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly plain-English SaaS pricing intel for founders and PMMs." />
+  <meta property="og:description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly SaaS pricing intel, plus a change monitor for any public page." />
   <meta property="og:url" content="https://emressp.github.io/pricewatch/" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Pricewatch — Weekly SaaS Pricing Intel" />
-  <meta name="twitter:description" content="Know when competitors change plans, prices, and limits — before your next deal." />
-  <meta name="description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly plain-English SaaS pricing intel for founders and PMMs." />
+  <meta name="twitter:description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly intel, plus a change monitor for any public page." />
+  <meta name="description" content="Know when competitors change plans, prices, and limits — before your next deal. Weekly SaaS pricing intel, plus a change monitor for any public page." />
   <style>
     :root {
       --ink: #0b1220;
@@ -120,6 +120,15 @@
       text-decoration: none; font-weight: 800; padding: 12px 16px; border-radius: 10px;
     }
     .fine { font-size: 12px; opacity: .85; margin-top: 8px; }
+    .split { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; align-items: center; }
+    @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+    .mini-diff {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px; background: #0b1220; color: #e2e8f0; border-radius: 14px; padding: 16px 18px;
+    }
+    .mini-diff .add { color: #6ee7b7; }
+    .mini-diff .del { color: #fda4af; }
+    .mini-diff .meta { opacity: .7; margin-top: 10px; font-family: "Segoe UI", system-ui, sans-serif; font-size: 12px; }
     footer {
       max-width: 1040px; margin: 0 auto; padding: 24px 20px 40px;
       color: var(--muted); font-size: 12px; border-top: 1px solid var(--line);
@@ -130,6 +139,7 @@
   <nav class="nav">
     <div class="logo">Price<span>watch</span></div>
     <div style="display:flex;gap:12px;align-items:center;">
+      <a href="monitor/" style="color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;">Change Monitor</a>
       <a href="pricing/" style="color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;">Tracked products</a>
       <a class="btn-sm" href="https://tally.so/r/perWg1" target="_blank" rel="noopener">Join waitlist</a>
     </div>
@@ -149,6 +159,7 @@
         <a class="btn btn-ghost" href="pricing/">Browse product pricing pages</a>
       </div>
       <p class="trust">Built for people who live in battlecards — not generic “page changed” alerts.</p>
+      <p class="trust">New: <a href="monitor/">Website Change Monitor</a> for any public page — prices, products, and the details around them.</p>
     </div>
     <aside class="card" id="sample">
       <h3>Sample from Weekly SaaS Pricing Intel</h3>
@@ -183,6 +194,45 @@
         <div class="icon">🎯</div>
         <h3>Category focus</h3>
         <p>Start with Email Marketing, CRM, and AI/Dev tools — the stacks your ICP already obsesses over.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="change-monitor">
+    <h2>Website Change Monitor</h2>
+    <p class="sub">An upgrade to Pricewatch for online sellers, competitor researchers, and operators. Paste a public URL. Get an email when prices, products, or the information on the page actually change.</p>
+    <div class="grid-3">
+      <div class="feature">
+        <div class="icon">🏷️</div>
+        <h3>Prices, products, and page details</h3>
+        <p>Watch the whole page, switch on price-only mode, or limit the check to a CSS selector.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🧹</div>
+        <h3>Noise stays out</h3>
+        <p>Cookie banners, ad slots, timestamps, and session tokens are stripped before we compare.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">📬</div>
+        <h3>A diff you can read</h3>
+        <p>The email shows what was removed and what replaced it. The app keeps the old and new text.</p>
+      </div>
+    </div>
+    <div class="split" style="margin-top:18px">
+      <div>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="app/" data-app="/app/signup">Start free</a>
+          <a class="btn btn-ghost" href="monitor/#pricing">See plans</a>
+        </div>
+        <p class="trust">Free: 3 URLs, checked daily. Seller ($19/mo) and Research ($49/mo) add hourly checks and larger watchlists.</p>
+      </div>
+      <div class="mini-diff" aria-hidden="true">
+        <div>Northwind Supply</div>
+        <div class="del">- Trail kit — $29/mo</div>
+        <div class="add">+ Trail kit — $34/mo</div>
+        <div class="del">- Base camp bundle — $49/mo</div>
+        <div class="add">+ Expedition pack — $79/mo</div>
+        <div class="meta">Cookie banners, ad slots, and timestamps ignored.</div>
       </div>
     </div>
   </section>
@@ -254,10 +304,20 @@
   </section>
 
   <footer>
-    <p><a href="pricing/">Tracked product pricing pages</a> · <a href="https://emressp.github.io/pricewatch/sitemap.xml">Sitemap</a></p>
+    <p><a href="monitor/">Website Change Monitor</a> · <a href="pricing/">Tracked product pricing pages</a> · <a href="terms/">Terms</a> · <a href="privacy/">Privacy</a> · <a href="https://emressp.github.io/pricewatch/sitemap.xml">Sitemap</a></p>
     <p>© 2026 Pricewatch · Not affiliated with monitored SaaS vendors · Deployable free on GitHub Pages or Cloudflare Pages (drop this folder as the site root).</p>
     <p>Payments via Polar (Merchant of Record). After checkout, set your watchlist at <a href="welcome/">/welcome/</a>. Free waitlist still available above if you are not ready to subscribe.</p>
     <p style="margin-top:12px"><a href="https://fazier.com" target="_blank"><img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light" width="105" alt="Launched on Fazier"></a></p>
   </footer>
+  <script src="app-url.js"></script>
+  <script>
+    (function () {
+      var origin = String(window.PRICEWATCH_APP_ORIGIN || "").replace(/\/$/, "");
+      if (!origin) return;
+      document.querySelectorAll("[data-app]").forEach(function (el) {
+        el.href = origin + el.getAttribute("data-app");
+      });
+    })();
+  </script>
 </body>
 </html>

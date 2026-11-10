@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Website Change Monitor — Pricewatch</title>
+  <link rel="canonical" href="https://emressp.github.io/pricewatch/monitor/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Pricewatch" />
+  <meta property="og:title" content="Website Change Monitor — Pricewatch" />
+  <meta property="og:description" content="Enter a website URL. Get an email when its prices, products, or information change. Built for online sellers, competitor researchers, and operators." />
+  <meta property="og:url" content="https://emressp.github.io/pricewatch/monitor/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Website Change Monitor — Pricewatch" />
+  <meta name="twitter:description" content="Enter a website URL. Get an email when its prices, products, or information change." />
+  <meta name="description" content="Enter a website URL. Get an email when its prices, products, or information change. Built for online sellers, competitor researchers, and operators." />
+  <style>
+    :root {
+      --ink: #0b1220; --muted: #5b6b7c; --line: #e6ebf2; --bg: #f6f8fc;
+      --card: #ffffff; --brand: #4f46e5; --brand-dark: #312e81; --teal: #0d9488;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.55; }
+    a { color: var(--brand); }
+    .nav { max-width: 1040px; margin: 0 auto; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .logo { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; color: inherit; text-decoration: none; }
+    .logo span { color: var(--brand); }
+    .nav-links { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .nav a.link { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; }
+    .nav a.btn-sm { text-decoration: none; background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+    .hero { max-width: 1040px; margin: 0 auto; padding: 24px 20px 8px; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 28px; align-items: center; }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+    .eyebrow { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); background: #ccfbf1; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+    h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -0.03em; }
+    .lede { color: var(--muted); font-size: 17px; margin: 0 0 18px; max-width: 560px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    .btn { display: inline-block; text-decoration: none; border-radius: 10px; padding: 12px 18px; font-weight: 700; font-size: 14px; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .trust { font-size: 13px; color: var(--muted); }
+    .mini-diff { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #0b1220; color: #e2e8f0; border-radius: 16px; padding: 18px 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
+    .mini-diff .add { color: #6ee7b7; }
+    .mini-diff .del { color: #fda4af; }
+    .mini-diff .meta { opacity: .7; margin-top: 10px; font-family: "Segoe UI", system-ui, sans-serif; font-size: 12px; }
+    .section { max-width: 1040px; margin: 0 auto; padding: 36px 20px; }
+    .section h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -0.02em; }
+    .section .sub { color: var(--muted); margin: 0 0 22px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 860px) { .grid-3 { grid-template-columns: 1fr; } }
+    .feature { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .feature .icon { font-size: 20px; margin-bottom: 8px; }
+    .feature h3 { margin: 0 0 6px; font-size: 16px; }
+    .feature p { margin: 0; color: var(--muted); font-size: 14px; }
+    .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 860px) { .pricing { grid-template-columns: 1fr; } }
+    .plan { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; position: relative; }
+    .plan.featured { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    .plan .tag { position: absolute; top: 12px; right: 12px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .plan h3 { margin: 0; font-size: 16px; }
+    .plan .price { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; margin: 10px 0 4px; }
+    .plan .price span { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .plan .who { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+    .plan ul { margin: 0 0 16px; padding-left: 18px; font-size: 14px; color: var(--ink); }
+    .plan a { display: block; text-align: center; text-decoration: none; font-weight: 700; background: #0b1220; color: #fff; padding: 11px; border-radius: 10px; font-size: 14px; }
+    .plan.featured a { background: var(--brand); }
+    footer { max-width: 1040px; margin: 0 auto; padding: 24px 20px 40px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="logo" href="../">Price<span>watch</span></a>
+    <div class="nav-links">
+      <a class="link" href="../">Weekly intel</a>
+      <a class="link" href="../pricing/">Tracked products</a>
+      <a class="btn-sm" href="../app/" data-app="/app/signup">Start free</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Part of Pricewatch · sellers · researchers · operators</div>
+      <h1>Get an email when a page’s prices, products, or details change.</h1>
+      <p class="lede">
+        Paste a public URL. Pricewatch checks it on a schedule, ignores cookie banners, ads, timestamps, and session tokens, and sends a readable old-vs-new diff.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="../app/" data-app="/app/signup">Start free</a>
+        <a class="btn btn-ghost" href="#pricing">See plans</a>
+      </div>
+      <p class="trust">Free for 3 URLs, checked daily. No card required. The first check saves a baseline and does not email you.</p>
+    </div>
+    <aside class="mini-diff">
+      <div>Northwind Supply · price only</div>
+      <div class="del">- Trail kit — $29/mo</div>
+      <div class="add">+ Trail kit — $34/mo</div>
+      <div class="del">- Base camp bundle — $49/mo</div>
+      <div class="add">+ Expedition pack — $79/mo</div>
+      <div class="meta">Same page, new prices. The timestamp and the ad slot did not count.</div>
+    </aside>
+  </section>
+
+  <section class="section" id="how">
+    <h2>How a watch works</h2>
+    <p class="sub">Sign up, add a URL, pick how closely to look, and choose how often to check.</p>
+    <div class="grid-3">
+      <div class="feature">
+        <div class="icon">1</div>
+        <h3>Add a URL</h3>
+        <p>Any public product, pricing, or info page. Optionally limit it to a CSS selector such as <code>.pricing</code>.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">2</div>
+        <h3>Choose what matters</h3>
+        <p>Whole page, or price-only mode when you care about prices and priced products rather than surrounding copy.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">3</div>
+        <h3>Get the diff</h3>
+        <p>Daily on the free plan, hourly on paid plans. Email summarizes the change. The app keeps the previous and current text.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Who it’s for</h2>
+    <p class="sub">The same Pricewatch account, pointed at the pages you actually sell against.</p>
+    <div class="grid-3">
+      <div class="feature">
+        <div class="icon">🛒</div>
+        <h3>Online sellers</h3>
+        <p>Catch a competitor’s price cut or a new bundle the day it shows up, not after a lost order.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🔎</div>
+        <h3>Competitor researchers</h3>
+        <p>Keep a watchlist of pricing and product pages and read the history as a diff, not a screenshot pile.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🏢</div>
+        <h3>Businesses</h3>
+        <p>Watch your own catalog or a supplier page so a bad edit or a quiet price move does not sit unnoticed.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing">
+    <h2>Change Monitor plans</h2>
+    <p class="sub">Start free. Seller and Research raise the URL cap and unlock hourly checks.</p>
+    <div class="pricing">
+      <div class="plan">
+        <h3>Watch</h3>
+        <div class="price">Free</div>
+        <div class="who">Try it on a handful of pages</div>
+        <ul>
+          <li>3 URLs</li>
+          <li>Daily checks</li>
+          <li>Price-only mode or whole page</li>
+          <li>Email alerts and change history</li>
+        </ul>
+        <a href="../app/" data-app="/app/signup">Start free</a>
+      </div>
+      <div class="plan featured">
+        <div class="tag">Most popular</div>
+        <h3>Seller</h3>
+        <div class="price">$19 <span>/ mo</span></div>
+        <div class="who">Stores and solo researchers</div>
+        <ul>
+          <li>25 URLs</li>
+          <li>Hourly or daily checks</li>
+          <li>CSS selector to watch part of a page</li>
+          <li>Full old-vs-new history</li>
+        </ul>
+        <a href="../app/" data-app="/app/signup">Create account</a>
+      </div>
+      <div class="plan">
+        <h3>Research</h3>
+        <div class="price">$49 <span>/ mo</span></div>
+        <div class="who">Competitor sets and catalogs</div>
+        <ul>
+          <li>100 URLs</li>
+          <li>Hourly or daily checks</li>
+          <li>Everything in Seller</li>
+          <li>Built for a large watchlist</li>
+        </ul>
+        <a href="../app/" data-app="/app/signup">Create account</a>
+      </div>
+    </div>
+    <p class="trust" style="margin-top:14px">Checks respect robots.txt and wait between requests to the same site. Seller and Research are Polar subscriptions in the existing Pricewatch organization. The free plan works as soon as the monitor service is running.</p>
+  </section>
+
+  <footer>
+    <p><a href="../">Weekly SaaS pricing intel</a> · <a href="../pricing/">Tracked products</a> · <a href="../app/" data-app="/app/signup">Open the app</a> · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy</a></p>
+    <p>On GitHub Pages, “Start free” opens setup instructions until the monitor service is deployed on this host. Locally, <code>npm start</code> serves the signup form at that same path.</p>
+    <p>© 2026 Pricewatch · Not affiliated with the sites you choose to monitor.</p>
+  </footer>
+  <script src="../app-url.js"></script>
+  <script>
+    (function () {
+      var origin = String(window.PRICEWATCH_APP_ORIGIN || "").replace(/\/$/, "");
+      if (!origin) return;
+      document.querySelectorAll("[data-app]").forEach(function (el) {
+        el.href = origin + el.getAttribute("data-app");
+      });
+    })();
+  </script>
+</body>
+</html>

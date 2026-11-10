@@ -1,0 +1,57 @@
+# Free web service. The filesystem is ephemeral and the instance sleeps when idle.
+# SQLite lives on Turso. GitHub Actions pings /cron/tick so checks still run.
+services:
+  - type: web
+    name: pricewatch-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CHECKER_ENABLED
+        value: "1"
+      - key: ALLOW_LOCAL_FETCH
+        value: "0"
+      - key: DEMO_ENABLED
+        value: "0"
+      - key: ALLOW_PLAN_SWITCH
+        value: "0"
+      - key: POLAR_SERVER
+        value: production
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "0"
+      - key: MAIL_DAILY_LIMIT
+        value: "450"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: POLAR_ACCESS_TOKEN
+        sync: false
+      - key: POLAR_WEBHOOK_SECRET
+        sync: false
+      - key: POLAR_SELLER_PRODUCT_ID
+        sync: false
+      - key: POLAR_RESEARCH_PRODUCT_ID
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

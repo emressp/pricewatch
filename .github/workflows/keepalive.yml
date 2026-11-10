@@ -1,0 +1,37 @@
+name: keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the free service
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            APP_URL="https://pricewatch-2wxd.onrender.com"
+          fi
+          base="${APP_URL%/}"
+          echo "Pinging $base/health"
+          curl --fail --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 15 \
+            --max-time 60 \
+            "$base/health"
+          echo
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set; skipping /cron/tick. The in-process checker runs while the instance is awake."
+            exit 0
+          fi
+          echo "Running $base/cron/tick"
+          curl --fail --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 15 \
+            --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$base/cron/tick"
+          echo
